@@ -56,6 +56,7 @@ def chat_turn():
 
         state_db.append_message(session_id = data.get("session_id"), role = "user", text = data.get("message"))
 
+        session_details = state_db.get_session(session_id = data["session_id"])
         ai_response = generate_interview_response(session_details, user_msg)
 
         state_db.update_mood(data['session_id'], ai_response["new_mood"])
@@ -94,6 +95,7 @@ def eval_chat():
         from app.engine import generate_report_card
 
         evaluation_report = generate_report_card(session_details)
+        state_db.save_evaluation(data["session_id"], evaluation_report)
 
         return jsonify(evaluation_report), 200
 
