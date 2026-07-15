@@ -30,13 +30,40 @@ Frontend team: Use this to check which endpoints and JSON payloads are currently
 - [ ] Push to Render/Railway and verify environment variables (`GROQ_API_KEY`).
 
 ---
-**Note to Frontend:** The `/api/chat` endpoint currently returns this data structure. You can map these to the UI components immediately:
-```json
+
+## API Reference for Frontend
+
+### POST /api/start
+Request:
+{
+  "scenario": "Salary Negotiation",
+  "personality": "Strict FAANG interviewer",
+  "context": "Senior Dev at Google",
+  "brutal": true
+}
+Response (201):
+{
+  "status": "Success",
+  "session_id": "uuid-string",
+  "message": "Simulation initialized. Ready for first prompt"
+}
+
+### POST /api/chat
+Request: { "session_id": "...", "message": "..." }
+Response (200):
 {
   "response": "The AI's text response...",
-  "current_turn_fillers": {
-    "um": 1,
-    "like": 1
-  },
-  "total_new_fillers": 2
+  "current_turn_fillers": { "um": 1, "like": 1 },
+  "total_new_fillers": 2   // NOTE: confirm exact key name against routes.py before building
+}
+
+### POST /api/evaluate
+Request: { "session_id": "..." }
+Response (200):
+{
+  "overall_score": 0,
+  "verdict": "NO HIRE",       // one of: STRONG HIRE, HIRE, LEANING NO HIRE, NO HIRE
+  "strengths": [],             // can be empty array
+  "critical_weaknesses": ["string", "string"],
+  "executive_summary": "Paragraph summarizing the performance."
 }
