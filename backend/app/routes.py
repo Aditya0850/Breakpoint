@@ -59,9 +59,35 @@ def chat_turn():
         return jsonify({
             "response" : ai_response["response"],
             "current_turn_fillers": ai_response["filler_analysis"]["details"],
-            "total_new_filers": ai_response["filler_analysis"]["total_increment"]
+            "total_new_fillers": ai_response["filler_analysis"]["total_increment"]
             }), 200
 
     except Exception as e:
 
         return jsonify({"error": f"AI Engine Failure: {str(e)}"}), 500
+
+
+@api.route('/evaluate', methods = ["POST"])
+def eval_chat():
+
+    data = request.get_json()
+
+    if not data or "session_id" not in data:
+
+        return jsonify({"error": "Missing required field: session_id"}), 400
+
+    session_details = state_db.get_session(session_id= data["session_id"])
+
+    if not session_details:
+        return jsonify({"error": "Session not found or expired"}), 404
+
+    try:
+
+        from app.engine import generate_report_card
+
+        evaluation_report = generate_report_card(session_details)
+
+        return jsonify(evaluation_report), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Evaluation Engine Failure: {str(e)}"}), 500

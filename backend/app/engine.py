@@ -1,4 +1,4 @@
-import os
+import os, json
 from groq import Groq
 from app.utils import count_filler_words
 
@@ -91,3 +91,63 @@ def generate_interview_response(session_data: dict, current_message: str) -> str
             'response': response.choices[0].message.content,
             'filler_analysis': filler_analysis
             }
+
+def _extract_text(msg):
+    if "text" in msg:
+        return msg["text"]
+    if "content" in msg:
+        return msg["content"]
+    parts = msg.get("parts", [])
+    if parts:
+        return parts[0] if isinstance(parts[0], str) else parts[0].get("text", "")
+    return ""
+
+def generate_report_card(session_data: dict) -> dict:
+
+    client = get_groq_client()
+
+    history = session_data.get("history", [])
+
+    grader_instruction = """
+        You are an elite, hyper-critical hiring manager for a top-tier tech company (FAANG).
+        You are evaluating a candidate's performance based on the following mock interview transcript. 
+        The scenario was: {session_data.get('scenario', 'General Interview')}.
+        The candidate was interviewing for: {session_data.get('context', 'Tech Role')}.
+    
+        Your grading must be brutally honest, objective, and analytical. Do not sugarcoat your feedback. 
+        If they gave vague answers, used too much filler, or failed to justify their claims, penalize them heavily.
+    
+        You MUST output your evaluation strictly in valid JSON format using the exact schema below. Do not include any other text outside the JSON object.
+    
+        JSON Schema:
+        {{
+            "overall_score": <int between 0 and 100>,
+            "verdict": <string, strictly one of: "STRONG HIRE", "HIRE", "LEANING NO HIRE", "NO HIRE">,
+            "strengths": [<list of 1-3 strings detailing specific things they did well>],
+            "critical_weaknesses": [<list of 1-3 strings detailing their fatal flaws>],
+            "executive_summary": <string, a brutal 2-3 sentence summary of why they got this score>
+        }}
+    """
+
+    transcript = "\n".join([
+        f"{msg.get('role', 'UNKNOWN').upper()}: {_extract_text(msg)}"
+        for msg in history
+    ])
+
+
+    messages = [
+            {"role": "system", "content": grader_instruction},
+            {"role": "user", "content": f"Here is the interview transcript to evaluate:\n\n{transcript}"}
+        ]
+    
+    response = client.chat.completions.create(
+            model = "llama-3.3-70b-versatile",
+            messages = messages,
+            temperature = 0.3,
+            response_format={"type": "json_object"}
+        )
+
+    return json.loads(response.choices[0].message.content)
+
+
+
