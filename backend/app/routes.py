@@ -26,6 +26,8 @@ def start_session():
             personality = data["personality"],
             context = data["context"],
             brutal = data.get("brutal", False),
+            current_mood = 5,
+            mood_timeline = [5]
             )
     return jsonify({
         "status" : "Success",
@@ -56,12 +58,16 @@ def chat_turn():
 
         ai_response = generate_interview_response(session_details, user_msg)
 
+        state_db.update_mood(data['session_id'], ai_response["new_mood"])
+
         state_db.append_message(session_id = data.get("session_id"), role = "model", text = ai_response["response"])
+        updated_session = state_db.get_session(session_id = data["session_id"])
 
         return jsonify({
             "response" : ai_response["response"],
             "current_turn_fillers": ai_response["filler_analysis"]["details"],
-            "total_new_fillers": ai_response["filler_analysis"]["total_increment"]
+            "total_new_fillers": ai_response["filler_analysis"]["total_increment"],
+            "current_mood": updated_session["current_mood"]
             }), 200
 
     except Exception as e:
@@ -125,13 +131,16 @@ def chat_audio_turn():
         state_db.append_message(session_id=session_id, role="user", text=user_msg)
 
         ai_response = generate_interview_response(session_details, user_msg)
+        state_db.update_mood(session_id, ai_response["new_mood"])
         state_db.append_message(session_id=session_id, role="model", text=ai_response["response"])
-
+        updated_session = state_db.get_session(session_id = session_id)
+        
         return jsonify({
             "user_transcript": user_msg,
             "response": ai_response["response"],
             "current_turn_fillers": filler_metrics["details"],
-            "total_new_fillers": filler_metrics["total_increment"]
+            "total_new_fillers": filler_metrics["total_increment"],
+            "current_mood": updated_session["current_mood"]
         }), 200
 
     except Exception as e:
