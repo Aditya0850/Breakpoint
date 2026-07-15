@@ -30,30 +30,6 @@ Frontend team: Use this to check which endpoints and JSON payloads are currently
 - [ ] Push to Render/Railway and verify environment variables (`GROQ_API_KEY`).
 
 ---
-## API Reference for Frontend
-
-### POST /api/start
-
-Request:
-```json
-{
-  "scenario": "Salary Negotiation",
-  "personality": "Strict FAANG interviewer",
-  "context": "Senior Dev at Google",
-  "brutal": true
-}
-```
-
-Response (201):
-```json
-{
-  "status": "Success",
-  "session_id": "uuid-string",
-  "message": "Simulation initialized. Ready for first prompt"
-}
-```
-
----
 
 ## API Reference for Frontend
 
@@ -79,7 +55,6 @@ Response (201):
 ```
 
 ---
-## API Reference for Frontend
 
 ### POST /api/chat
 
@@ -130,3 +105,5 @@ Response (200):
 ```
 > `verdict` is strictly one of: `"STRONG HIRE"`, `"HIRE"`, `"LEANING NO HIRE"`, `"NO HIRE"`
 > `strengths` can be an empty array — frontend should render gracefully with zero items.
+
+
