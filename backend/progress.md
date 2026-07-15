@@ -18,7 +18,7 @@ Frontend team: Use this to check which endpoints and JSON payloads are currently
 ## 🔌 Phase 3: API Endpoints (Routing)
 - [x] `POST /api/start` - Initializes session, sets parameters, returns `session_id`.
 - [x] `POST /api/chat` - Accepts user message, updates history, runs NLP metrics, and returns AI response + current turn analytics.
-- [ ] `GET /api/evaluate` - (PENDING) Analyzes the entire session history and returns a final structured report card / score.
+- [x] `GET /api/evaluate` - Analyzes the entire session history and returns a final structured report card / score.
 
 ## 🎙️ Phase 4: Frontend Handoff & Audio
 - [ ] Implement Web Speech API / Audio recording flow (Frontend).
