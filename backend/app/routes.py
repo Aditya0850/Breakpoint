@@ -1,7 +1,9 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 import uuid
 from app.models import state_db
-from app.engine import generate_interview_response
+from app.engine import generate_interview_response, transcribe_audio_file
+from app.utils import count_filler_words
+import os
 
 
 api = Blueprint('api', __name__)
@@ -91,3 +93,52 @@ def eval_chat():
 
     except Exception as e:
         return jsonify({"error": f"Evaluation Engine Failure: {str(e)}"}), 500
+
+
+
+@api.route('/chat/audio', methods = ['POST'])
+def chat_audio_turn():
+
+    if 'audio' not in request.files or 'session_id' not in request.form:
+
+        return jsonify({"error": "Missing 'audio' file or 'session_id' form field"}), 400
+
+    audio_file = request.files['audio']
+    session_id = request.form['session_id']
+
+    session_details = state_db.get_session(session_id = session_id)
+    if not session_details:
+        return jsonify({"error": "Session not found or expired"}), 404
+
+    temp_path = f"temp_{session_id}.webm"
+    audio_file.save(temp_path)
+
+    try:
+
+        user_msg = transcribe_audio_file(temp_path)
+
+        if not user_msg.strip():
+            return jsonify({"error": "Whisper could not detect any speech in the audio clip."}), 400
+
+        filler_metrics = count_filler_words(user_msg)
+
+        state_db.append_message(session_id=session_id, role="user", text=user_msg)
+
+        ai_response = generate_interview_response(session_details, user_msg)
+        state_db.append_message(session_id=session_id, role="model", text=ai_response["response"])
+
+        return jsonify({
+            "user_transcript": user_msg,
+            "response": ai_response["response"],
+            "current_turn_fillers": filler_metrics["details"],
+            "total_new_fillers": filler_metrics["total_increment"]
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Audio Engine Failure: {str(e)}"}), 500
+
+    finally:
+
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+

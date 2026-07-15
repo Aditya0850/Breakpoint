@@ -108,7 +108,7 @@ def generate_report_card(session_data: dict) -> dict:
 
     history = session_data.get("history", [])
 
-    grader_instruction = """
+    grader_instruction = f"""
         You are an elite, hyper-critical hiring manager for a top-tier tech company (FAANG).
         You are evaluating a candidate's performance based on the following mock interview transcript. 
         The scenario was: {session_data.get('scenario', 'General Interview')}.
@@ -144,10 +144,21 @@ def generate_report_card(session_data: dict) -> dict:
             model = "llama-3.3-70b-versatile",
             messages = messages,
             temperature = 0.3,
-            response_format={"type": "json_object"}
+            response_format = {"type": "json_object"}
         )
 
     return json.loads(response.choices[0].message.content)
 
 
+def transcribe_audio_file(file_path: str) -> str:
 
+    client = get_groq_client()
+
+    with open(file_path, "rb") as file:
+        transcription = client.audio.transcriptions.create(
+            file = file,
+            model = "whisper-large-v3",
+            prompt = "Accurately transcribe spoken audio. Preserve all filler words like um, uh, and like exactly as spoken.",
+            response_format = "text"
+        )
+    return str(transcription)
