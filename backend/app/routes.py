@@ -25,7 +25,7 @@ def start_session():
             scenario = data["scenario"],
             personality = data["personality"],
             context = data["context"],
-            brutal = data.get("brutal", False)
+            brutal = data.get("brutal", False),
             )
     return jsonify({
         "status" : "Success",

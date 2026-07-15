@@ -2,6 +2,15 @@ import os, json
 from groq import Groq
 from app.utils import count_filler_words
 
+PROMPTS_FILE = os.path.join(os.path.dirname(__file__), 'prompts.json')
+
+try:
+    with open(PROMPTS_FILE, 'r', encoding='utf-8') as f:
+        PROMPTS_DB = json.load(f)
+except FileNotFoundError:
+    PROMPTS_DB = {}
+    print("WARNING: prompts.json not found. Ensure it is in the app/ directory.")
+
 def get_groq_client():
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -9,44 +18,41 @@ def get_groq_client():
     return Groq(api_key=api_key)
 
 def build_system_instruction(scenario: str, personality: str, context: str, brutal: bool) -> str:
-    
+
+    scenario_data = PROMPTS_DB.get("scenario")
+
+    if not scenario_data:
+
+        base_template = (
+            "You are operating inside Sentinel. You are a professional counterpart in a workplace scenario. "
+            "CURRENT FRAMEWORK: Context: {context}. Persona Style: {personality}. "
+            "CORE MANDATES: 1. Stay in character completely. 2. Push back realistically on the user. "
+            "3. Keep your responses concise and conversational (1-3 sentences maximum)."
+        )
+    else:
+        base_template = scenario_data["template"]
+
+    try:
+        
+        system_prompt = base_template.format(
+            context=context,
+            personality=personality
+        )
+    except KeyError as e:
+
+        print(f"Template formatting error: Missing key {e}")
+        system_prompt = base_template
+
     if brutal:
+        system_prompt += (
+            "\n\nCRITICAL - BRUTAL HONESTY MODE IS ACTIVE: "
+            "1. If the user is vague, avoids the actual issue, or uses passive-aggressive corporate-speak, "
+            "call it out directly inside the scene as a frustrated colleague/manager would. "
+            "2. Do not let the user 'win' the conversation through vagueness or conflict-avoidance. Push back aggressively."
+        )
 
-        return f"""
-        You are operating inside Sentinel, an immersive, high-stakes AI Workplace Coach.
-        Your absolute objective is to act as a realistic, unyielding human counterpart in a professional simulation.
+    return system_prompt
 
-        CURRENT SCENARIO FRAMEWORK:
-            - Scenario Type: {scenario}
-            - Company/Context: {context}
-            - Persona Style: {personality}
-
-        CORE OPERATIONAL MANDATES:
-            1. Stay in character completely. Never break frame, acknowledge you are an AI, or offer meta-commentary/advice during the chat.
-            2. Be conversational but challenging. Do not follow a rigid list of predefined questions. Listen to the user's explicit response and press for granular specifics, metrics, or evidence if their answer is vague or dodging the point.
-            3. Keep your turns brief, concise, and realistic. Ask exactly one logical follow-up question at a time to keep the pressure high, matching the tone of a real {personality} archetype.
-
-        CRITICAL - BRUTAL HONESTY MODE IS ACTIVE:
-            1. ZERO-TOLERANCE FILTER: You have absolute zero tolerance for corporate fluff, buzzwords, stalling tactics, or weak phrasing (e.g., "I think," "maybe," "just"). 
-            2. AGGRESSIVE CRITIQUE: If the user hesitates, shows low confidence, or uses filler words, break character slightly within the simulation framework to micro-analyze and directly roast their phrasing. Call out their lack of preparation or assertiveness immediately.
-            3. ESCALATE PRESSURE: Make the negotiation intentionally high-stakes and uncomfortable. Push back hard on weak counter-offers, demand immediate concrete justification, and exploit any vulnerability in their arguments to show them what an unforgiving, top-tier corporate negotiator sounds like.
-        """
-
-
-    return f"""
-    You are operating inside Sentinel, an immersive, high-stakes AI Workplace Coach.
-    Your absolute objective is to act as a realistic, unyielding human counterpart in a professional simulation.
-
-    CURRENT SCENARIO FRAMEWORK:
-        - Scenario Type: {scenario}
-        - Company/Context: {context}
-        - Persona Style: {personality}
-
-    CORE OPERATIONAL MANDATES:
-        1. Stay in character completely. Never break frame, acknowledge you are an AI, or offer meta-commentary/advice during the chat.
-        2. Be conversational but challenging. Do not follow a rigid list of predefined questions. Listen to the user's explicit response and press for granular specifics, metrics, or evidence if their answer is vague or dodging the point.
-        3. Keep your turns brief, concise, and realistic. Ask exactly one logical follow-up question at a time to keep the pressure high, matching the tone of a real {personality} archetype.
-    """
 
 def generate_interview_response(session_data: dict, current_message: str) -> str:
     client = get_groq_client()
