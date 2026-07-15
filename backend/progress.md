@@ -30,40 +30,103 @@ Frontend team: Use this to check which endpoints and JSON payloads are currently
 - [ ] Push to Render/Railway and verify environment variables (`GROQ_API_KEY`).
 
 ---
-
 ## API Reference for Frontend
 
 ### POST /api/start
+
 Request:
+```json
 {
   "scenario": "Salary Negotiation",
   "personality": "Strict FAANG interviewer",
   "context": "Senior Dev at Google",
   "brutal": true
 }
+```
+
 Response (201):
+```json
 {
   "status": "Success",
   "session_id": "uuid-string",
   "message": "Simulation initialized. Ready for first prompt"
 }
+```
+
+---
+
+## API Reference for Frontend
+
+### POST /api/start
+
+Request:
+```json
+{
+  "scenario": "Salary Negotiation",
+  "personality": "Strict FAANG interviewer",
+  "context": "Senior Dev at Google",
+  "brutal": true
+}
+```
+
+Response (201):
+```json
+{
+  "status": "Success",
+  "session_id": "uuid-string",
+  "message": "Simulation initialized. Ready for first prompt"
+}
+```
+
+---
+## API Reference for Frontend
 
 ### POST /api/chat
-Request: { "session_id": "...", "message": "..." }
+
+Request:
+```json
+{
+  "session_id": "uuid-string",
+  "message": "user's response text"
+}
+```
+
 Response (200):
+```json
 {
   "response": "The AI's text response...",
-  "current_turn_fillers": { "um": 1, "like": 1 },
-  "total_new_fillers": 2   // NOTE: confirm exact key name against routes.py before building
+  "current_turn_fillers": {
+    "um": 1,
+    "like": 1
+  },
+  "total_new_fillers": 2
 }
+```
+> ⚠️ Confirm exact key name (`total_new_fillers` vs `total_new_filers`) against current `routes.py` before building — this has been inconsistent across versions.
+
+---
 
 ### POST /api/evaluate
-Request: { "session_id": "..." }
+
+Request:
+```json
+{
+  "session_id": "uuid-string"
+}
+```
+
 Response (200):
+```json
 {
   "overall_score": 0,
-  "verdict": "NO HIRE",       // one of: STRONG HIRE, HIRE, LEANING NO HIRE, NO HIRE
-  "strengths": [],             // can be empty array
-  "critical_weaknesses": ["string", "string"],
+  "verdict": "NO HIRE",
+  "strengths": [],
+  "critical_weaknesses": [
+    "string",
+    "string"
+  ],
   "executive_summary": "Paragraph summarizing the performance."
 }
+```
+> `verdict` is strictly one of: `"STRONG HIRE"`, `"HIRE"`, `"LEANING NO HIRE"`, `"NO HIRE"`
+> `strengths` can be an empty array — frontend should render gracefully with zero items.
