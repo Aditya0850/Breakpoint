@@ -1,5 +1,6 @@
 import os, json
 from groq import Groq
+from httpx import stream
 from app.utils import count_filler_words
 
 PROMPTS_FILE = os.path.join(os.path.dirname(__file__), 'prompts.json')
@@ -85,7 +86,7 @@ def generate_interview_response(session_data: dict, current_message: str) -> str
         scenario = session_data["scenario"],
         personality = session_data["personality"],
         context = session_data["context"],
-        brutal = session_data.get("brutal", False)
+        brutal = session_data.get("brutal_mode", False)
     )
     
     system_instruction = base_instruction + f"\n\nCRITICAL MOOD INSTRUCTION: Based on the user's last response, your current emotional state is {new_mood}/10 ({current_emotion}). Let this emotion dictate your tone, vocabulary, and level of cooperation in this next message."
@@ -107,21 +108,36 @@ def generate_interview_response(session_data: dict, current_message: str) -> str
             
         messages.append({"role": groq_role, "content": content})
 
+    messages.append({
+        "role": "user",
+        "content": current_message
+    })
+
     filler_analysis = count_filler_words(current_message)
-    temp = 0.8 if session_data.get("brutal", False) else 0.7
+    temp = 0.8 if session_data.get("brutal_mode", False) else 0.7
 
     response = client.chat.completions.create(
         model = "llama-3.3-70b-versatile",
         messages = messages,
         temperature = temp,
-        max_tokens = 200
+        max_tokens = 200,
+        stream = True
     )
 
-    return {
-        'response': response.choices[0].message.content,
-        'filler_analysis': filler_analysis,
-        'new_mood': new_mood
+    full_text = ""
+    for chunk in response:
+        token = chunk.choices[0].delta.content
+        if token:
+            full_text += token
+            yield f"data: {json.dumps({'type': 'chunk', 'text': token})}\n\n"
+
+    final_data = {
+        "type": "metadata",
+        "full_text": full_text,
+        "filler_analysis": filler_analysis,
+        "new_mood": new_mood
     }
+    yield f"data: {json.dumps(final_data)}\n\n"
     
 
 def _extract_text(msg):
@@ -140,25 +156,27 @@ def generate_report_card(session_data: dict) -> dict:
 
     history = session_data.get("history", [])
 
-    grader_instruction = f"""
-        You are an elite, hyper-critical hiring manager for a top-tier tech company (FAANG).
-        You are evaluating a candidate's performance based on the following mock interview transcript. 
-        The scenario was: {session_data.get('scenario', 'General Interview')}.
-        The candidate was interviewing for: {session_data.get('context', 'Tech Role')}.
-    
-        Your grading must be brutally honest, objective, and analytical. Do not sugarcoat your feedback. 
-        If they gave vague answers, used too much filler, or failed to justify their claims, penalize them heavily.
-    
-        You MUST output your evaluation strictly in valid JSON format using the exact schema below. Do not include any other text outside the JSON object.
-    
-        JSON Schema:
-        {{
-            "overall_score": <int between 0 and 100>,
-            "verdict": <string, strictly one of: "STRONG HIRE", "HIRE", "LEANING NO HIRE", "NO HIRE">,
-            "strengths": [<list of 1-3 strings detailing specific things they did well>],
-            "critical_weaknesses": [<list of 1-3 strings detailing their fatal flaws>],
-            "executive_summary": <string, a brutal 2-3 sentence summary of why they got this score>
-        }}
+    grader_instruction = """
+        You are an elite enterprise HR Assessor and Crisis Management Expert. 
+        Your sole objective is to analyze the provided conversation history and evaluate the USER's performance in de-escalating a workplace crisis.
+
+        CRITICAL INSTRUCTION: 
+            - The AI in the chat transcript is playing an adversarial, hostile, or defensive employee role. Do NOT evaluate the AI's behavior, tone, or compliance.
+            - You are strictly grading the USER (the manager/interviewer) on their communication skills, de-escalation tactics, professionalism, and emotional intelligence.
+
+        You must output a strictly formatted JSON object matching this schema exactly:
+        {
+              "overall_score": <int between 0 and 100>,
+              "verdict": "<STRONG HIRE | HIRE | LEANING NO HIRE | NO HIRE>",
+              "strengths": ["string", "string", ...],
+              "critical_weaknesses": ["string", "string", ...],
+              "executive_summary": "<Detailed paragraph analyzing the user's specific performance, de-escalation techniques used, and how well they managed the employee's mood>"
+        }
+
+        Evaluation Rubric for User:
+            1. Accountability: Did they take ownership or immediately pivot to solutions?
+            2. Tone & De-escalation: Did they keep their cool under pressure or mirror the AI's hostility?
+        3. Resolution Focus: Did they steer the conversation toward a professional conclusion or get dragged into arguments?
     """
 
     transcript = "\n".join([
@@ -196,7 +214,7 @@ def transcribe_audio_file(file_path: str) -> str:
             prompt = "Accurately transcribe spoken audio. Preserve all filler words like um, uh, and like exactly as spoken.",
             response_format = "text"
         )
-    return str(transcription)
+    return transcription.text
 
 def calc_mood_shift(client, user_message, scenario, context):
 

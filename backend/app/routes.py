@@ -1,15 +1,52 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response, stream_with_context
 import uuid
 from app.models import state_db
 from app.engine import generate_interview_response, transcribe_audio_file
 from app.utils import count_filler_words
-import os
+import os, joblib, json
 
+try:
+    from app.engine import PROMPTS_DB
+except ImportError:
+    PROMPTS_DB = {"Hostile Termination": True}
 
 api = Blueprint('api', __name__)
 
 @api.route('/start', methods = ['POST'])
 def start_session():
+
+    """
+    Initialize a new Sentinel training session.
+    ---
+    tags:
+      - Simulation
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - scenario
+            - personality
+            - context
+            - brutal
+          properties:
+            scenario:
+              type: string
+              example: Hostile Termination
+            personality:
+              type: string
+              example: Defensive senior engineer
+            context:
+              type: string
+              example: Caught violating data policies.
+            brutal:
+              type: boolean
+              example: true
+    responses:
+      201:
+        description: Session initialized successfully
+    """
 
     data = request.get_json()
 
@@ -35,6 +72,28 @@ def start_session():
         "message" : "Simulation initialized. Ready for first prompt"
         }), 201
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, '..', 'toxicity_model.pkl')
+
+try:
+    toxicity_model = joblib.load(MODEL_PATH)
+    print("✅ ML Toxicity Model loaded into memory successfully!")
+except Exception as e:
+    print(f"⚠️ Warning: Could not load ML model. Ensure toxicity_model.pkl is in the root directory. Error: {e}")
+    toxicity_model = None
+
+def process_chat(usr_msg: str) -> tuple[bool, int]:
+
+    if toxicity_model:
+
+        probabilities = toxicity_model.predict_proba([usr_msg])[0]
+        toxicity_score = round(probabilities[1] * 100, 2)
+        is_toxic = bool(toxicity_score > 50.0)
+
+        return is_toxic, toxicity_score
+
+    return False, 0.0
+
 
 @api.route('/chat', methods = ["POST"])
 def chat_turn():
@@ -47,6 +106,13 @@ def chat_turn():
 
     user_msg = data.get("message", "")
 
+    if len(user_msg) > 1000:
+        return jsonify({"error": "Message too long. Please keep it under 1000 characters."}), 400
+
+    is_toxic, toxicity_score = process_chat(usr_msg = user_msg)
+    
+    print(f"🧠 ML Classifier -> Toxic: {is_toxic} ({toxicity_score}%) | Msg: '{user_msg}'")
+
     session_details = state_db.get_session(session_id = data["session_id"])
 
     if not session_details:
@@ -54,26 +120,47 @@ def chat_turn():
 
     try:
 
-        state_db.append_message(session_id = data.get("session_id"), role = "user", text = data.get("message"))
+        raw_history = session_details.get("history", [])
+        if isinstance(raw_history, str):
+            history = json.loads(raw_history)
+        else:
+            history = raw_history
 
-        session_details = state_db.get_session(session_id = data["session_id"])
-        ai_response = generate_interview_response(session_details, user_msg)
+        history.append({"role": "user", "text": user_msg})
 
-        state_db.update_mood(data['session_id'], ai_response["new_mood"])
+        if len(history) > 10:
+            history = history[-10:]
 
-        state_db.append_message(session_id = data.get("session_id"), role = "model", text = ai_response["response"])
-        updated_session = state_db.get_session(session_id = data["session_id"])
+        session_details["history"] = history
 
-        return jsonify({
-            "response" : ai_response["response"],
-            "current_turn_fillers": ai_response["filler_analysis"]["details"],
-            "total_new_fillers": ai_response["filler_analysis"]["total_increment"],
-            "current_mood": updated_session["current_mood"]
-            }), 200
+        state_db.append_message(session_id=data["session_id"], role="user", text=user_msg)
+
+        def generate():
+
+            print("🚀 [DEBUG] Stream started!")
+            ping = json.dumps({"type": "chunk", "text": "*(Thinking...)* "})
+            yield f"data: {ping}\n\n"
+
+            for sse_string in generate_interview_response(session_details, user_msg):
+                yield sse_string
+
+                if '"type": "metadata"' in sse_string:
+                    json_str = sse_string.replace("data: ", "").strip()
+                    metadata = json.loads(json_str)
+
+                    state_db.append_message(
+                        session_id=data["session_id"], 
+                        role="model", 
+                        text=metadata["full_text"]
+                    )
+                    state_db.update_mood(data['session_id'], metadata["new_mood"])
+
+        return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
 
     except Exception as e:
-
         return jsonify({"error": f"AI Engine Failure: {str(e)}"}), 500
+
 
 
 @api.route('/evaluate', methods = ["POST"])
@@ -124,27 +211,54 @@ def chat_audio_turn():
     try:
 
         user_msg = transcribe_audio_file(temp_path)
-
         if not user_msg.strip():
             return jsonify({"error": "Whisper could not detect any speech in the audio clip."}), 400
+
+        is_toxic, toxicity_score = process_chat(usr_msg = user_msg)
+
 
         filler_metrics = count_filler_words(user_msg)
 
         state_db.append_message(session_id=session_id, role="user", text=user_msg)
+        
+        session_details = state_db.get_session(session_id=session_id)
 
-        ai_response = generate_interview_response(session_details, user_msg)
-        state_db.update_mood(session_id, ai_response["new_mood"])
-        state_db.append_message(session_id=session_id, role="model", text=ai_response["response"])
-        updated_session = state_db.get_session(session_id = session_id)
+        raw_history = session_details.get("history", [])
+        if isinstance(raw_history, str):
+            history = json.loads(raw_history)
+        else:
+            history = raw_history
+
+        if len(history) > 10:
+            history = history[-10:]
+
+        session_details["history"] = history
+
+        full_text = ""
+        new_mood = 5
+
+        for chunk in generate_interview_response(session_details, user_msg):
+            payload = json.loads(chunk.replace("data: ", "").strip())
+
+            if payload["type"] == "chunk":
+                full_text += payload["text"]
+
+            elif payload["type"] == "metadata":
+                new_mood = payload["new_mood"]
+
+        state_db.append_message(session_id=session_id, role="model", text=full_text)
+        state_db.update_mood(session_id, new_mood) 
         
         return jsonify({
             "user_transcript": user_msg,
-            "response": ai_response["response"],
+            "response": full_text,
             "current_turn_fillers": filler_metrics["details"],
             "total_new_fillers": filler_metrics["total_increment"],
-            "current_mood": updated_session["current_mood"]
+            "current_mood": new_mood, 
+            "toxicity_score": toxicity_score, 
+            "is_toxic": is_toxic 
         }), 200
-
+        
     except Exception as e:
         return jsonify({"error": f"Audio Engine Failure: {str(e)}"}), 500
 
@@ -152,4 +266,5 @@ def chat_audio_turn():
 
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
 
