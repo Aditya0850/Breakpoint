@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify, Response, stream_with_context
+from flask import Blueprint, render_template_string, send_file, request, jsonify, Response, stream_with_context
 import uuid
 from app.models import state_db
 from app.engine import generate_interview_response, transcribe_audio_file
 from app.utils import count_filler_words
-import os, joblib, json
+import os, joblib, json, io
+from weasyprint import HTML
 
 try:
     from app.engine import PROMPTS_DB
@@ -268,3 +269,149 @@ def chat_audio_turn():
             os.remove(temp_path)
 
 
+@api.route('/export/<session_id>', methods = ['GET'])
+def export(session_id):
+
+    session_details = state_db.get_session(session_id=session_id)
+    if not session_details:
+        return jsonify({"error": "Session context not found"}), 404
+
+    report_data = session_details.get("evaluation_report")
+    if not report_data:
+        return jsonify({"error": "No evaluation data found. Run /api/evaluate first."}), 400
+
+    if isinstance(report_data, str):
+        try:
+            report_data = json.loads(report_data)
+        except Exception:
+            return jsonify({"error": "Malformed evaluation report data"}), 400
+
+    html_template = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Sentinel Simulation Report</title>
+      <style>
+        @page {
+          size: A4;
+          margin: 20mm;
+          @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 9pt;
+            color: #6b7280;
+          }
+        }
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          color: #1f2937;
+          line-height: 1.5;
+          margin: 0;
+        }
+        .header {
+          border-bottom: 2px solid #3b82f6;
+          padding-bottom: 15px;
+          margin-bottom: 25px;
+        }
+        .title {
+          font-size: 24pt;
+          font-weight: bold;
+          color: #111827;
+          margin: 0;
+        }
+        .subtitle {
+          font-size: 12pt;
+          color: #4b5563;
+          margin-top: 5px;
+        }
+        .meta-grid {
+          border: 1px solid #e5e7eb;
+          padding: 15px;
+          border-radius: 6px;
+          margin-bottom: 30px;
+          background-color: #f9fafb;
+        }
+        .section-title {
+          font-size: 14pt;
+          font-weight: bold;
+          color: #1f2937;
+          border-bottom: 1px solid #e5e7eb;
+          padding-bottom: 5px;
+          margin-top: 25px;
+          margin-bottom: 15px;
+        }
+        .metric-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 15px;
+          margin-bottom: 15px;
+        }
+        .score-badge {
+          color: #3b82f6;
+          font-weight: bold;
+          float: right;
+        }
+        .summary-card {
+          background-color: #eff6ff;
+          border: 1px solid #bfdbfe;
+          padding: 15px;
+          border-radius: 6px;
+          color: #1e3a8a;
+        }
+      </style>
+    </head>
+    <body>
+
+      <div class="header">
+        <h1 class="title">Sentinel Performance Evaluation</h1>
+        <div class="subtitle">Workplace Simulation Behavioral Analytics Report</div>
+      </div>
+
+      <div class="meta-grid">
+        <strong>Session ID:</strong> <span>{{ session_id }}</span><br>
+        <strong>Scenario:</strong> <span>{{ session.scenario }}</span>
+      </div>
+
+      <div class="section-title">Core Competency Breakdown</div>
+      
+      {% for metric, details in report_data.items() %}
+      {% if metric not in ['overall_summary', 'filler_words_detected'] %}
+      <div class="metric-card">
+        <div>
+          <strong>{{ metric.replace('_', ' ').title() }}</strong>
+          <span class="score-badge">{{ details.score if details.score is defined else 'N/A' }} / 10</span>
+        </div>
+        <p style="color: #4b5563; margin-top: 8px; margin-bottom: 0;">
+          {{ details.feedback if details.feedback is defined else details }}
+        </p>
+      </div>
+      {% endif %}
+      {% endfor %}
+
+      <div class="section-title">Executive Summary</div>
+      <div class="summary-card">
+        {{ report_data.overall_summary if report_data.overall_summary is defined else 'Evaluation complete.' }}
+      </div>
+
+    </body>
+    </html>
+    """
+
+    rendered_html = render_template_string(
+        html_template, 
+        session_id=session_id, 
+        session=session_details, 
+        report_data=report_data
+    )
+
+    pdf_buffer = io.BytesIO()
+    HTML(string=rendered_html).write_pdf(target=pdf_buffer)
+    pdf_buffer.seek(0)
+
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f"Sentinel_Report_{session_id[:8]}.pdf"
+    )
