@@ -1,5 +1,4 @@
 .venv
 .toml
-.python-version
 .env
 .out
