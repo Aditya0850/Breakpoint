@@ -41,7 +41,7 @@ def verify_supabase_jwt(token: str):
                 "email": user_response.user.email
             }
     except Exception as e:
-        print(f"🔒 Auth Token Validation Failed: {e}" fr)
+        print(f"🔒 Auth Token Validation Failed: {e}")
     return None
 
 def requires_auth(f):
