@@ -37,6 +37,8 @@ All errors follow a unified JSON schema for easier frontend parsing:
   "message": "Error description string",
   "type": "ExceptionClassName"
 }
+```
+
 
 ## 5. Development Metadata
 
