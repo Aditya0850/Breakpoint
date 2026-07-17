@@ -1,9 +1,8 @@
-from re import template
-
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flasgger import Swagger
 from dotenv import load_dotenv
+import os
 
 def create_app():
 
@@ -11,7 +10,9 @@ def create_app():
     
     app = Flask(__name__)
 
-    CORS(app)
+    app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False') == 'True'
+
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     swagger_template = {
       "swagger": "2.0",
@@ -42,5 +43,20 @@ def create_app():
     from app.routes import api
 
     app.register_blueprint(api, url_prefix = "/api")
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+
+        print(f"🚨 Unhandled Exception: {str(e)}")
+
+        status_code = 500
+        if hasattr(e, 'code'):
+            status_code = e.code
+            
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "type": e.__class__.__name__
+        }), status_code
 
     return app

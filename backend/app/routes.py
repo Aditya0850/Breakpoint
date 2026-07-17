@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template_string, send_file, request, jsonify, Response, stream_with_context
+from flask import Blueprint, render_template_string, send_file, request, jsonify, Response, stream_with_context, g
 import uuid
 from app.models import state_db
 from app.engine import generate_interview_response, transcribe_audio_file
-from app.utils import count_filler_words
+from app.utils import count_filler_words, requires_auth
 import os, joblib, json, io
 from weasyprint import HTML
 
@@ -14,6 +14,7 @@ except ImportError:
 api = Blueprint('api', __name__)
 
 @api.route('/start', methods = ['POST'])
+@requires_auth
 def start_session():
 
     """
@@ -22,6 +23,11 @@ def start_session():
     tags:
       - Simulation
     parameters:
+      - in: header
+        name: Authorization
+        type: string
+        required: true
+        description: "Bearer <JWT_TOKEN>"
       - in: body
         name: body
         schema:
@@ -30,24 +36,16 @@ def start_session():
             - scenario
             - personality
             - context
-            - brutal
           properties:
-            scenario:
-              type: string
-              example: Hostile Termination
-            personality:
-              type: string
-              example: Defensive senior engineer
-            context:
-              type: string
-              example: Caught violating data policies.
-            brutal:
-              type: boolean
-              example: true
+            scenario: {type: string, example: "Hostile Termination"}
+            personality: {type: string, example: "Defensive senior engineer"}
+            context: {type: string, example: "Caught violating data policies."}
+            brutal: {type: boolean, example: true}
     responses:
       201:
         description: Session initialized successfully
     """
+
 
     data = request.get_json()
 
@@ -60,6 +58,7 @@ def start_session():
 
     state_db.create_session(
             session_id = session_id,
+            user_id = g.user_id,
             scenario = data["scenario"],
             personality = data["personality"],
             context = data["context"],
@@ -97,6 +96,7 @@ def process_chat(usr_msg: str) -> tuple[bool, int]:
 
 
 @api.route('/chat', methods = ["POST"])
+@requires_auth
 def chat_turn():
 
     data = request.get_json()
@@ -165,6 +165,7 @@ def chat_turn():
 
 
 @api.route('/evaluate', methods = ["POST"])
+@requires_auth
 def eval_chat():
 
     data = request.get_json()
@@ -193,6 +194,7 @@ def eval_chat():
 
 
 @api.route('/chat/audio', methods = ['POST'])
+@requires_auth
 def chat_audio_turn():
 
     if 'audio' not in request.files or 'session_id' not in request.form:
@@ -270,6 +272,7 @@ def chat_audio_turn():
 
 
 @api.route('/export/<session_id>', methods = ['GET'])
+@requires_auth
 def export(session_id):
 
     session_details = state_db.get_session(session_id=session_id)
@@ -415,3 +418,71 @@ def export(session_id):
         as_attachment=True,
         download_name=f"Sentinel_Report_{session_id[:8]}.pdf"
     )
+
+@api.route('/auth/signup', methods = ['POST'])
+def signup():
+
+    data = request.get_json()
+
+    if not data or not all(k in data for k in ("email", "password")):
+        return jsonify({"error": "Missing email or password"}), 400
+
+    try:
+
+        auth_response = state_db.signup_user(data["email"], data["password"])
+
+        return jsonify({
+            "message": "User registered successfully",
+            "user_id": auth_response.user.id
+        }), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/auth/login', methods = ['POST'])
+def login():
+    
+    data = request.get_json()
+
+    if not data or not all(k in data for k in ("email", "password")):
+        return jsonify({"error": "Missing email or password"}), 400
+
+    try:
+
+        auth_response = state_db.login_user(data["email"], data["password"])
+
+        return jsonify({
+            "message": "Login successful",
+            "access_token": auth_response.session.access_token,
+            "user_id": auth_response.user.id
+        }), 200
+    except Exception as e:
+        return jsonify({"error": "Invalid email or password"}), 401
+
+@api.route('/health', methods=['GET'])
+def health_check():
+    """Verify backend and dependency connectivity."""
+    status = {
+        "status": "online",
+        "services": {
+            "database": False,
+            "groq_api": False
+        }
+    }
+
+    try:
+        state_db.db.table("sessions").select("id", count="exact", head=True).execute()
+        status["services"]["database"] = True
+    except Exception as e:
+        print(f"Health Check: Database unreachable: {e}")
+
+    try:
+        from app.engine import get_groq_client
+        client = get_groq_client()
+        client.models.list()
+        status["services"]["groq_api"] = True
+    except Exception as e:
+        print(f"Health Check: Groq API unreachable: {e}")
+
+    code = 200 if all(status["services"].values()) else 503
+    return jsonify(status), code

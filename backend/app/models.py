@@ -1,5 +1,7 @@
 import os
+from flask import render_template_string
 from supabase import create_client, Client
+from werkzeug.wrappers import response
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
@@ -11,10 +13,11 @@ class SessionManager:
 
         self.db = supabase
 
-    def create_session(self, session_id: str, scenario: str, personality: str, context: str, brutal: bool, current_mood: int, mood_timeline: list[int]):
+    def create_session(self, session_id: str, user_id: str, scenario: str, personality: str, context: str, brutal: bool, current_mood: int, mood_timeline: list[int]):
 
         data = {
             "id": session_id,
+            "user_id": user_id,
             "scenario": scenario,
             "context": context,
             "personality": personality,
@@ -59,5 +62,30 @@ class SessionManager:
             "evaluation_report": report
         }).eq("id", session_id).execute()
 
+    def signup_user(self, email: str, password: str):
+
+        response = self.db.auth.sign_up({
+            "email": email,
+            "password": password
+            })
+
+        if response and response.user:
+            try:
+                self.db.table("profiles").insert({
+                    "id": response.user.id
+                }).execute()
+            except Exception as e:
+                print(f"⚠️ Warning: Could not auto-generate profile row: {e}")
+
+        return response
+
+    def login_user(self, email: str, password: str):
+
+        response = self.db.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+            })
+        
+        return response
 
 state_db = SessionManager()
