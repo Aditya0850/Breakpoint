@@ -49,9 +49,23 @@ def start_session():
 
     data = request.get_json()
 
-    if not data or not all(k in data for k in ("scenario", "personality", "context")):
+    if data and all(k in data for k in ("role", "interview_type", "style_archetype", "difficulty")):
 
-        return jsonify({"error": "Missing required setup fields (scenario, personality, context)"}), 400
+        scenario = data["interview_type"]
+        personality = data["style_archetype"]
+        context = f"{data['role']} — {data['difficulty']} level"
+        brutal = data["difficulty"].lower() == "senior"
+
+    elif data and all(k in data for k in ("scenario", "personality", "context")):
+
+        scenario = data["scenario"]
+        personality = data["personality"]
+        context = data["context"]
+        brutal = data.get("brutal", False)
+
+    else:
+        return jsonify({"error": "Missing required setup fields"}), 400
+
     
 
     session_id = str(uuid.uuid4())
@@ -59,13 +73,14 @@ def start_session():
     state_db.create_session(
             session_id = session_id,
             user_id = g.user_id,
-            scenario = data["scenario"],
-            personality = data["personality"],
-            context = data["context"],
-            brutal = data.get("brutal", False),
+            scenario = scenario,
+            personality = personality,
+            context = context,
+            brutal = brutal,
             current_mood = 5,
             mood_timeline = [5]
             )
+
     return jsonify({
         "status" : "Success",
         "session_id" : session_id,
@@ -118,6 +133,9 @@ def chat_turn():
 
     if not session_details:
         return jsonify({"error": "Session not found or expired"}),404
+
+    if session_details.get("user_id") != g.user_id:
+        return jsonify({"error": "Session not found or expired"}), 404
 
     try:
 
@@ -179,6 +197,9 @@ def eval_chat():
     if not session_details:
         return jsonify({"error": "Session not found or expired"}), 404
 
+    if session_details.get("user_id") != g.user_id:
+        return jsonify({"error": "Session not found or expired"}), 404
+
     try:
 
         from app.engine import generate_report_card
@@ -207,6 +228,10 @@ def chat_audio_turn():
     session_details = state_db.get_session(session_id = session_id)
     if not session_details:
         return jsonify({"error": "Session not found or expired"}), 404
+
+    if session_details.get("user_id") != g.user_id:
+        return jsonify({"error": "Session not found or expired"}), 404
+
 
     temp_path = f"temp_{session_id}.webm"
     audio_file.save(temp_path)
@@ -277,7 +302,10 @@ def export(session_id):
 
     session_details = state_db.get_session(session_id=session_id)
     if not session_details:
-        return jsonify({"error": "Session context not found"}), 404
+        return jsonify({"error": "Session not found or expired"}), 404
+
+    if session_details.get("user_id") != g.user_id:
+        return jsonify({"error": "Session not found or expired"}), 404
 
     report_data = session_details.get("evaluation_report")
     if not report_data:
@@ -354,6 +382,15 @@ def export(session_id):
           color: #3b82f6;
           font-weight: bold;
           float: right;
+          font-size: 16pt;
+        }
+        .verdict-badge {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 4px;
+          font-weight: bold;
+          background-color: #fee2e2;
+          color: #991b1b;
         }
         .summary-card {
           background-color: #eff6ff;
@@ -361,6 +398,22 @@ def export(session_id):
           padding: 15px;
           border-radius: 6px;
           color: #1e3a8a;
+        }
+        ul {
+          margin: 0;
+          padding-left: 20px;
+        }
+        li {
+          margin-bottom: 6px;
+        }
+        .empty-note {
+          color: #9ca3af;
+          font-style: italic;
+        }
+        .mood-track {
+          font-family: monospace;
+          font-size: 12pt;
+          color: #1f2937;
         }
       </style>
     </head>
@@ -376,25 +429,49 @@ def export(session_id):
         <strong>Scenario:</strong> <span>{{ session.scenario }}</span>
       </div>
 
-      <div class="section-title">Core Competency Breakdown</div>
-      
-      {% for metric, details in report_data.items() %}
-      {% if metric not in ['overall_summary', 'filler_words_detected'] %}
+      <div class="section-title">Overall Result</div>
       <div class="metric-card">
-        <div>
-          <strong>{{ metric.replace('_', ' ').title() }}</strong>
-          <span class="score-badge">{{ details.score if details.score is defined else 'N/A' }} / 10</span>
-        </div>
-        <p style="color: #4b5563; margin-top: 8px; margin-bottom: 0;">
-          {{ details.feedback if details.feedback is defined else details }}
+        <span class="score-badge">{{ report_data.overall_score }} / 100</span>
+        <div class="verdict-badge">{{ report_data.verdict }}</div>
+      </div>
+
+      <div class="section-title">Strengths</div>
+      <div class="metric-card">
+        {% if report_data.strengths and report_data.strengths|length > 0 %}
+        <ul>
+          {% for item in report_data.strengths %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-note">No standout strengths identified in this session.</p>
+        {% endif %}
+      </div>
+
+      <div class="section-title">Critical Weaknesses</div>
+      <div class="metric-card">
+        {% if report_data.critical_weaknesses and report_data.critical_weaknesses|length > 0 %}
+        <ul>
+          {% for item in report_data.critical_weaknesses %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-note">No critical weaknesses identified.</p>
+        {% endif %}
+      </div>
+
+      <div class="section-title">Mood Timeline</div>
+      <div class="metric-card">
+        <div class="mood-track">{{ report_data.mood_timeline | join('  →  ') }}</div>
+        <p style="color: #6b7280; font-size: 9pt; margin-top: 8px; margin-bottom: 0;">
+          Scale: 1 (hostile) — 10 (fully won over). Tracks the AI counterpart's mood across the conversation.
         </p>
       </div>
-      {% endif %}
-      {% endfor %}
 
       <div class="section-title">Executive Summary</div>
       <div class="summary-card">
-        {{ report_data.overall_summary if report_data.overall_summary is defined else 'Evaluation complete.' }}
+        {{ report_data.executive_summary }}
       </div>
 
     </body>

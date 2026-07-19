@@ -42,7 +42,7 @@ def create_app():
 
     from app.routes import api
 
-    app.register_blueprint(api, url_prefix = "/api")
+    app.register_blueprint(api, url_prefix = "/api/v1")
 
     @app.errorhandler(Exception)
     def handle_exception(e):

@@ -4,7 +4,7 @@ BASE_URL = "http://127.0.0.1:5000"
 HEADERS = {"Content-Type": "application/json"}
 
 # Dummy credentials for testing
-TEST_EMAIL = "sentinel_test_40@gmail.com"
+TEST_EMAIL = "sentinel_test_4@gmail.com"
 TEST_PASSWORD = "SuperSecretPassword123!"
 
 def run_integration_test():
@@ -18,7 +18,7 @@ def run_integration_test():
     
     # 1. Attempt to login first
     login_payload = {"email": TEST_EMAIL, "password": TEST_PASSWORD}
-    login_res = requests.post(f"{BASE_URL}/api/auth/login", json=login_payload, headers=HEADERS)
+    login_res = requests.post(f"{BASE_URL}/api/v1/auth/login", json=login_payload, headers=HEADERS)
     
     # 2. If login fails (user doesn't exist), register them
     if login_res.status_code != 200:
