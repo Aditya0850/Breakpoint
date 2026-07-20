@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* ── Sentinel design tokens ──────────────────────────────────────
+   Source of truth: the palette established in Landing.css/Auth.css.
+   Exposed as CSS vars (for hand-written CSS) and as Tailwind theme
+   values (for utility classes in Setup/Dashboard/Interview/Report),
+   so every screen shares one visual identity instead of drifting. */
+@theme {
+  --color-base: #0A0A0F;
+  --color-surface: #111118;
+  --color-elevated: #1A1A26;
+  --color-hover: #20202E;
+  --color-accent: #6E56CF;
+  --color-accent-light: #A891FF;
+  --color-accent-dim: #3D2F8A;
+  --color-text-primary: #F0EEF8;
+  --color-text-muted: #7B7A8E;
+  --color-text-dim: #4A4858;
+  --color-mood-warm: #56CF8A;
+  --color-mood-cold: #CF5656;
+  --color-mood-neutral: #CF9E56;
+  --color-border: #1E1E2E;
+  --color-border-light: #2A2A3E;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-text-primary);
+}
