@@ -88,4 +88,18 @@ class SessionManager:
         
         return response
 
+    def create_or_get_profile(self, user_id: str, email: str = None, first_name: str = None, last_name: str = None):
+
+        existing = self.db.table("profiles").select("*").eq("id", user_id).execute()
+        if existing.data:
+            return existing.data[0]
+
+        data = {"id": user_id}
+        if email: data["email"] = email
+        if first_name: data["first_name"] = first_name
+        if last_name: data["last_name"] = last_name
+
+        response = self.db.table("profiles").insert(data).execute()
+        return response.data[0] if response.data else None
+
 state_db = SessionManager()

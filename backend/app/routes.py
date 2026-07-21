@@ -296,6 +296,12 @@ def chat_audio_turn():
             os.remove(temp_path)
 
 
+TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+REPORT_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, 'report_template.html')
+
+with open(REPORT_TEMPLATE_PATH, 'r') as f:
+    REPORT_TEMPLATE = f.read()
+
 @api.route('/export/<session_id>', methods = ['GET'])
 @requires_auth
 def export(session_id):
@@ -317,184 +323,26 @@ def export(session_id):
         except Exception:
             return jsonify({"error": "Malformed evaluation report data"}), 400
 
-    html_template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Sentinel Simulation Report</title>
-      <style>
-        @page {
-          size: A4;
-          margin: 20mm;
-          @bottom-right {
-            content: "Page " counter(page) " of " counter(pages);
-            font-size: 9pt;
-            color: #6b7280;
-          }
-        }
-        body {
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          color: #1f2937;
-          line-height: 1.5;
-          margin: 0;
-        }
-        .header {
-          border-bottom: 2px solid #3b82f6;
-          padding-bottom: 15px;
-          margin-bottom: 25px;
-        }
-        .title {
-          font-size: 24pt;
-          font-weight: bold;
-          color: #111827;
-          margin: 0;
-        }
-        .subtitle {
-          font-size: 12pt;
-          color: #4b5563;
-          margin-top: 5px;
-        }
-        .meta-grid {
-          border: 1px solid #e5e7eb;
-          padding: 15px;
-          border-radius: 6px;
-          margin-bottom: 30px;
-          background-color: #f9fafb;
-        }
-        .section-title {
-          font-size: 14pt;
-          font-weight: bold;
-          color: #1f2937;
-          border-bottom: 1px solid #e5e7eb;
-          padding-bottom: 5px;
-          margin-top: 25px;
-          margin-bottom: 15px;
-        }
-        .metric-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          padding: 15px;
-          margin-bottom: 15px;
-        }
-        .score-badge {
-          color: #3b82f6;
-          font-weight: bold;
-          float: right;
-          font-size: 16pt;
-        }
-        .verdict-badge {
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 4px;
-          font-weight: bold;
-          background-color: #fee2e2;
-          color: #991b1b;
-        }
-        .summary-card {
-          background-color: #eff6ff;
-          border: 1px solid #bfdbfe;
-          padding: 15px;
-          border-radius: 6px;
-          color: #1e3a8a;
-        }
-        ul {
-          margin: 0;
-          padding-left: 20px;
-        }
-        li {
-          margin-bottom: 6px;
-        }
-        .empty-note {
-          color: #9ca3af;
-          font-style: italic;
-        }
-        .mood-track {
-          font-family: monospace;
-          font-size: 12pt;
-          color: #1f2937;
-        }
-      </style>
-    </head>
-    <body>
+    try:
+        rendered_html = render_template_string(
+            REPORT_TEMPLATE, 
+            session_id=session_id, 
+            session=session_details, 
+            report_data=report_data
+        )
 
-      <div class="header">
-        <h1 class="title">Sentinel Performance Evaluation</h1>
-        <div class="subtitle">Workplace Simulation Behavioral Analytics Report</div>
-      </div>
+        pdf_buffer = io.BytesIO()
+        HTML(string=rendered_html).write_pdf(target=pdf_buffer)
+        pdf_buffer.seek(0)
 
-      <div class="meta-grid">
-        <strong>Session ID:</strong> <span>{{ session_id }}</span><br>
-        <strong>Scenario:</strong> <span>{{ session.scenario }}</span>
-      </div>
-
-      <div class="section-title">Overall Result</div>
-      <div class="metric-card">
-        <span class="score-badge">{{ report_data.overall_score }} / 100</span>
-        <div class="verdict-badge">{{ report_data.verdict }}</div>
-      </div>
-
-      <div class="section-title">Strengths</div>
-      <div class="metric-card">
-        {% if report_data.strengths and report_data.strengths|length > 0 %}
-        <ul>
-          {% for item in report_data.strengths %}
-          <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="empty-note">No standout strengths identified in this session.</p>
-        {% endif %}
-      </div>
-
-      <div class="section-title">Critical Weaknesses</div>
-      <div class="metric-card">
-        {% if report_data.critical_weaknesses and report_data.critical_weaknesses|length > 0 %}
-        <ul>
-          {% for item in report_data.critical_weaknesses %}
-          <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="empty-note">No critical weaknesses identified.</p>
-        {% endif %}
-      </div>
-
-      <div class="section-title">Mood Timeline</div>
-      <div class="metric-card">
-        <div class="mood-track">{{ report_data.mood_timeline | join('  →  ') }}</div>
-        <p style="color: #6b7280; font-size: 9pt; margin-top: 8px; margin-bottom: 0;">
-          Scale: 1 (hostile) — 10 (fully won over). Tracks the AI counterpart's mood across the conversation.
-        </p>
-      </div>
-
-      <div class="section-title">Executive Summary</div>
-      <div class="summary-card">
-        {{ report_data.executive_summary }}
-      </div>
-
-    </body>
-    </html>
-    """
-
-    rendered_html = render_template_string(
-        html_template, 
-        session_id=session_id, 
-        session=session_details, 
-        report_data=report_data
-    )
-
-    pdf_buffer = io.BytesIO()
-    HTML(string=rendered_html).write_pdf(target=pdf_buffer)
-    pdf_buffer.seek(0)
-
-    return send_file(
-        pdf_buffer,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f"Sentinel_Report_{session_id[:8]}.pdf"
-    )
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Sentinel_Report_{session_id[:8]}.pdf"
+        )
+    except Exception as e:
+        return jsonify({"error": f"PDF generation failed: {str(e)}"}), 500
 
 @api.route('/auth/signup', methods = ['POST'])
 def signup():
@@ -535,6 +383,24 @@ def login():
         }), 200
     except Exception as e:
         return jsonify({"error": "Invalid email or password"}), 401
+
+@api.route('/auth/oauth/profile', methods = ['POST'])
+@requires_auth
+def oauth_profile():
+
+    data = request.get_json() or {}
+
+    try:
+        profile = state_db.create_or_get_profile(
+            user_id=g.user_id,
+            email=data.get("email"),
+            first_name=data.get("first_name"),
+            last_name=data.get("last_name"),
+        )
+        return jsonify({"message": "Profile ready", "profile": profile}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 @api.route('/health', methods=['GET'])
 def health_check():

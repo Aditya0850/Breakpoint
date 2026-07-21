@@ -2,224 +2,101 @@
 
 ## Philosophy
 
-Sentinel follows a premium, minimal, product-first design language inspired by:
-
-- Linear
-- Vercel
-- Stripe
-- Apple
-- Anthropic
-- Notion
-
-Every UI decision should prioritize clarity, whitespace, and professionalism.
+Premium, minimal, product-first design language inspired by Linear, Vercel, Stripe, Apple, Anthropic, and Notion. Every UI decision prioritizes clarity, whitespace, and professionalism.
 
 ---
 
-# Color Palette
+## Color Palette
 
-## Background
+### Backgrounds
 
-Primary
-#0A0A0F
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-base` | `#0A0A0F` | Page background |
+| `--color-surface` | `#111118` | Card surfaces |
+| `--color-elevated` | `#1A1A26` | Hover/elevated surfaces |
+| `--color-hover` | `#20202E` | Hover states |
 
-Surface
-#111118
+### Text
 
-Elevated
-#1A1A26
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-primary` | `#F0EEF8` | Primary text |
+| `--color-muted` | `#7B7A8E` | Secondary/muted text |
+| `--color-dim` | `#4A4858` | Dim/placeholder text |
 
-Border
-#222230
+### Accent
 
----
+| Token | Value |
+|-------|-------|
+| Accent (primary) | `#6E56CF` |
+| Accent dim | `#3D2F8A` |
+| Accent light | `#A891FF` |
+| Success | `#56CF8A` |
+| Warning | `#F6C445` |
+| Danger | `#CF5656` |
 
-## Text
+### Borders
 
-Primary
-#F0EEF8
-
-Secondary
-#7B7A8E
-
-Muted
-#4A4858
-
----
-
-## Accent
-
-Primary Accent
-#6E56CF
-
-Accent Dark
-#3D2F8A
-
-Success
-#56CF8A
-
-Warning
-#F6C445
-
-Danger
-#CF5656
+| Token | Value |
+|-------|-------|
+| Border | `#1E1E2E` |
+| Border light | `#2A2A3E` |
 
 ---
 
-# Typography
+## Typography
 
-Font Family
-
-Inter
-
-Mono
-
-JetBrains Mono
-
-Heading
-
-700–800
-
-Body
-
-400–500
+| Property | Value |
+|----------|-------|
+| Primary font | Inter |
+| Monospace font | JetBrains Mono |
+| Heading weight | 700–800 |
+| Body weight | 400–500 |
 
 ---
 
-# Border Radius
+## Border Radius
 
-Cards
-16px
-
-Buttons
-12px
-
-Inputs
-12px
-
-Badges
-999px
+| Element | Radius |
+|---------|--------|
+| Cards | 16px |
+| Buttons | 12px |
+| Inputs | 12px |
+| Badges | 999px (pill) |
 
 ---
 
-# Shadows
+## Spacing System
 
-Very subtle.
-
-No heavy shadows.
-
-Use elevation through contrast instead.
+Base unit: 4px. Common values: 4, 8, 12, 16, 24, 32, 48, 64.
 
 ---
 
-# Spacing System
+## Animation
 
-Base Unit
-
-4px
-
-Common spacing
-
-4
-8
-12
-16
-24
-32
-48
-64
+- Library: Framer Motion
+- Duration: 150ms / 250ms / 400ms (never exceed 500ms)
+- Easing: easeOut
+- Animations communicate state, not decoration.
 
 ---
 
-# Animations
+## Design Rules
 
-Library
+- Lots of whitespace
+- One accent color (`#6E56CF`)
+- Dark theme only
+- Consistent spacing
+- Clear hierarchy
+- Responsive layout
 
-Framer Motion
+## Never Do
 
-Duration
-
-150ms
-250ms
-400ms
-
-Never exceed 500ms.
-
-Use easing:
-
-easeOut
-
-Animations should communicate state—not decorate.
-
----
-
-# Components
-
-Buttons
-
-Primary
-
-Filled Accent
-
-Secondary
-
-Ghost
-
-Danger
-
-Inputs
-
-Filled dark surface
-
-1px border
-
-Animated focus ring
-
-Cards
-
-Dark surface
-
-Thin border
-
-No heavy drop shadow
-
----
-
-# Icons
-
-Lucide React
-
-Only.
-
----
-
-# Design Rules
-
-✓ Lots of whitespace
-
-✓ One accent color
-
-✓ Dark theme only
-
-✓ Consistent spacing
-
-✓ Clear hierarchy
-
-✓ Responsive
-
----
-
-# Never Do
-
-❌ Rainbow colors
-
-❌ Glassmorphism everywhere
-
-❌ Bootstrap-looking layouts
-
-❌ Stock illustrations
-
-❌ Giant gradients
-
-❌ Excessive animations
-
-❌ More than one accent color
+- Rainbow colors
+- Glassmorphism everywhere
+- Bootstrap-looking layouts
+- Stock illustrations
+- Giant gradients
+- Excessive animations
+- More than one accent color
