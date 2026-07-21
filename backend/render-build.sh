@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+echo "Installing Python dependencies..."
+uv sync
+
 echo "Building frontend..."
 npm ci --prefix ../frontend
 npm run build --prefix ../frontend
