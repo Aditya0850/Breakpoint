@@ -45,14 +45,22 @@ def create_app():
     app.register_blueprint(api, url_prefix = "/api/v1")
 
     FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
+    index_path = os.path.join(FRONTEND_DIST, 'index.html')
+    print(f"📂 FRONTEND_DIST: {FRONTEND_DIST}")
+    print(f"📄 index.html exists: {os.path.isfile(index_path)}")
+    if os.path.isdir(FRONTEND_DIST):
+        for f in os.listdir(FRONTEND_DIST):
+            print(f"  📦 {f}")
 
-    @app.route('/')
+    @app.route('/', defaults={'path': 'index.html'})
     @app.route('/<path:path>')
-    def serve_frontend(path='index.html'):
+    def serve_frontend(path):
         file = os.path.join(FRONTEND_DIST, path)
         if os.path.isfile(file):
             return send_from_directory(FRONTEND_DIST, path)
-        return send_from_directory(FRONTEND_DIST, 'index.html')
+        if os.path.isfile(index_path):
+            return send_from_directory(FRONTEND_DIST, 'index.html')
+        return jsonify({"error": "Frontend not built"}), 503
 
     @app.errorhandler(Exception)
     def handle_exception(e):
