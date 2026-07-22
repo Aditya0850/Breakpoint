@@ -113,11 +113,7 @@ export async function sendAudioTurn({ audioFile, sessionId }) {
   form.append('audio', audioFile)
   form.append('session_id', sessionId)
 
-  const { data } = await api.post('/api/v1/chat/audio', form, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  })
+  const { data } = await api.post('/api/v1/chat/audio', form)
 
   return data
 }

@@ -18,7 +18,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-text-muted"
+          className="w-1.5 h-1.5 rounded-full bg-muted"
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.15 }}
         />
