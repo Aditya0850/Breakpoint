@@ -53,6 +53,7 @@ export default function Interview() {
   const [error, setError] = useState(null)
   const [openingRequested, setOpeningRequested] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [muted, setMuted] = useState(true)
   const scrollRef = useRef(null)
 
   // If the store's session doesn't match the URL (e.g. page refresh),
@@ -86,7 +87,11 @@ export default function Interview() {
         setError(err.message || 'Connection to the interviewer dropped — try again.')
       }
     } finally {
-      if (!terminated) finishAiStream()
+      if (!terminated) {
+        const lastResponse = useSessionStore.getState().streamingText
+        finishAiStream()
+        speakText(lastResponse)
+      }
     }
   }
 
@@ -117,7 +122,21 @@ export default function Interview() {
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
 
+  function speakText(text) {
+    if (muted || !text) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.rate = 1.0
+    const voices = window.speechSynthesis.getVoices()
+    u.voice = voices.find(v => v.lang.startsWith('en-US'))
+      || voices.find(v => v.lang.startsWith('en'))
+    window.speechSynthesis.speak(u)
+  }
+
+  function stopSpeaking() { window.speechSynthesis.cancel() }
+
   async function startRecording() {
+    stopSpeaking()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
@@ -142,6 +161,7 @@ export default function Interview() {
             currentMood: res.current_mood,
             fillerAnalysis: res.current_turn_fillers,
           })
+          speakText(res.response)
         } catch (err) {
           setError(err.message || 'Audio processing failed — try again.')
         } finally {
@@ -173,6 +193,7 @@ export default function Interview() {
   }
 
   async function handleSend() {
+    stopSpeaking()
     const text = input.trim()
     if (!text || isStreaming) return
     setInput('')
@@ -290,6 +311,14 @@ export default function Interview() {
             title={recording ? 'Stop recording' : 'Record voice answer'}
           >
             🎤 {recording ? 'Stop' : 'Voice'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMuted(m => !m)}
+            className="px-3 py-3 rounded-lg border border-border bg-surface text-sm hover:border-border-light transition-colors"
+            title={muted ? 'Unmute voice' : 'Mute voice'}
+          >
+            {muted ? '🔇' : '🔊'}
           </button>
           <button
             onClick={handleSend}
