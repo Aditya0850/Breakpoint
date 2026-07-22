@@ -156,6 +156,11 @@ def generate_report_card(session_data: dict) -> dict:
 
     history = session_data.get("history", [])
 
+    transcript = "\n".join([
+        f"[Turn {i}] {msg.get('role', 'UNKNOWN').upper()}: {_extract_text(msg)}"
+        for i, msg in enumerate(history)
+    ])
+
     grader_instruction = """
         You are an elite enterprise HR Assessor and Crisis Management Expert. 
         Your sole objective is to analyze the provided conversation history and evaluate the USER's performance in de-escalating a workplace crisis.
@@ -167,22 +172,28 @@ def generate_report_card(session_data: dict) -> dict:
         You must output a strictly formatted JSON object matching this schema exactly:
         {
               "overall_score": <int between 0 and 100>,
+              "confidence_score": <int between 0 and 100, based on filler words, hedging, and assertiveness>,
               "verdict": "<STRONG HIRE | HIRE | LEANING NO HIRE | NO HIRE>",
               "strengths": ["string", "string", ...],
               "critical_weaknesses": ["string", "string", ...],
+              "weak_moments": [
+                  {
+                      "turn_index": <int referencing the turn number in the transcript>,
+                      "user_answer": "<the user's original answer>",
+                      "issue": "<why it was weak — vague, defensive, no structure, etc.>",
+                      "ideal_rewrite": "<a rewritten version following STAR or better communication principles>"
+                  }
+              ],
+              "ideal_rewrites": ["<rewritten version of a weak answer>", ...],
               "executive_summary": "<Detailed paragraph analyzing the user's specific performance, de-escalation techniques used, and how well they managed the employee's mood>"
         }
 
         Evaluation Rubric for User:
             1. Accountability: Did they take ownership or immediately pivot to solutions?
             2. Tone & De-escalation: Did they keep their cool under pressure or mirror the AI's hostility?
-        3. Resolution Focus: Did they steer the conversation toward a professional conclusion or get dragged into arguments?
+            3. Resolution Focus: Did they steer the conversation toward a professional conclusion or get dragged into arguments?
+            4. Confidence & Language: Did they use assertive language or hedge/fill with vague qualifiers?
     """
-
-    transcript = "\n".join([
-        f"{msg.get('role', 'UNKNOWN').upper()}: {_extract_text(msg)}"
-        for msg in history
-    ])
 
 
     messages = [

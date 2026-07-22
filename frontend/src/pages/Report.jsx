@@ -155,7 +155,7 @@ export default function Report() {
           </div>
         </div>
 
-        {/* Score & Verdict Card */}
+        {/* Score, Confidence & Verdict Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
           <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center items-center text-center">
             <span className="text-xs text-muted uppercase tracking-wider mb-1">Overall Score</span>
@@ -163,7 +163,13 @@ export default function Report() {
               {report?.overall_score ?? '—'}<span className="text-lg text-dim">/100</span>
             </span>
           </div>
-          <div className="md:col-span-2 rounded-xl border border-border bg-surface p-6 flex flex-col justify-center">
+          <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center items-center text-center">
+            <span className="text-xs text-muted uppercase tracking-wider mb-1">Confidence</span>
+            <span className="text-4xl font-bold tracking-tight text-primary">
+              {report?.confidence_score ?? '—'}<span className="text-lg text-dim">/100</span>
+            </span>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center">
             <span className="text-xs text-muted uppercase tracking-wider mb-2">Final Verdict</span>
             <div>
               <span className={`inline-block px-3 py-1.5 rounded-lg border text-sm font-bold tracking-wide ${verdictBadgeStyle(report?.verdict)}`}>
@@ -186,6 +192,42 @@ export default function Report() {
           <h2 className="text-sm font-medium text-muted mb-3 uppercase tracking-wider">Mood Timeline (1–10)</h2>
           <MoodTimeline points={timelinePoints} />
         </section>
+
+        {/* Flagged Weak Moments */}
+        {report?.weak_moments && report.weak_moments.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-sm font-medium text-muted mb-3 uppercase tracking-wider">Flagged Weak Moments</h2>
+            <div className="flex flex-col gap-4">
+              {report.weak_moments.map((m, i) => (
+                <div key={i} className="rounded-xl border border-border bg-surface p-5">
+                  <p className="text-xs text-dim font-semibold uppercase tracking-wider mb-2">Turn {m.turn_index} — {m.issue}</p>
+                  <div className="mb-3 p-3 rounded-lg bg-mood-cold/5 border border-mood-cold/20">
+                    <p className="text-xs text-mood-cold font-semibold mb-1">You said:</p>
+                    <p className="text-sm text-primary">{m.user_answer}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-mood-warm/5 border border-mood-warm/20">
+                    <p className="text-xs text-mood-warm font-semibold mb-1">Ideal rewrite:</p>
+                    <p className="text-sm text-primary">{m.ideal_rewrite}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Ideal Answer Rewrites */}
+        {report?.ideal_rewrites && report.ideal_rewrites.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-sm font-medium text-muted mb-3 uppercase tracking-wider">Ideal Answer Rewrites</h2>
+            <div className="rounded-xl border border-border bg-surface p-5">
+              <ol className="flex flex-col gap-3 list-decimal pl-5">
+                {report.ideal_rewrites.map((r, i) => (
+                  <li key={i} className="text-sm text-primary leading-relaxed pl-1">{r}</li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        )}
 
         {/* Strengths & Weaknesses Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">

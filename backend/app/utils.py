@@ -31,6 +31,31 @@ def count_filler_words(text: str) -> dict:
 
     return {"details": found, "total_increment": total}
 
+FILLER_WORDS = {"um", "uh", "hmm", "like", "so", "basically", "literally", "actually", "sort of", "kind of", "you know", "i mean", "i guess"}
+HEDGING_WORDS = {"maybe", "perhaps", "possibly", "probably", "i think", "i feel", "might", "could be", "a bit", "a little", "somewhat", "almost"}
+ASSERTIVE_WORDS = {"i believe", "i am confident", "certainly", "definitely", "absolutely", "undoubtedly", "without question", "clearly", "i know", "i am sure"}
+
+def calculate_confidence(text: str) -> int:
+    doc = nlp(text.lower())
+    words = [token.text for token in doc if not token.is_punct and not token.is_space]
+    total_words = len(words)
+    if total_words == 0:
+        return 50
+
+    filler_count = sum(1 for token in doc if token.text.lower() in FILLER_WORDS)
+    hedging_count = sum(1 for token in doc if token.text.lower() in HEDGING_WORDS)
+    assertive_count = sum(1 for token in doc if token.text.lower() in ASSERTIVE_WORDS)
+
+    filler_ratio = filler_count / total_words
+    hedging_ratio = hedging_count / total_words
+    assertive_ratio = assertive_count / total_words
+
+    score = 70
+    score -= filler_ratio * 300
+    score -= hedging_ratio * 200
+    score += assertive_ratio * 150
+    return max(0, min(100, int(score)))
+
 def verify_supabase_jwt(token: str):
 
     try:

@@ -112,7 +112,14 @@
   <div class="section-title">Overall Result</div>
   <div class="metric-card">
     <span class="score-badge">{{ report_data.overall_score }} / 100</span>
-    <div class="verdict-badge">{{ report_data.verdict }}</div>
+    <div>
+      <div class="verdict-badge">{{ report_data.verdict }}</div>
+      {% if report_data.confidence_score is defined %}
+      <div style="margin-top:8px;font-size:11pt;color:#6b7280;">
+        Confidence Score: <strong>{{ report_data.confidence_score }}</strong> / 100
+      </div>
+      {% endif %}
+    </div>
   </div>
 
   <div class="section-title">Strengths</div>
@@ -148,6 +155,30 @@
       Scale: 1 (hostile) — 10 (fully won over). Tracks the AI counterpart's mood across the conversation.
     </p>
   </div>
+
+  {% if report_data.weak_moments and report_data.weak_moments|length > 0 %}
+  <div class="section-title">Flagged Weak Moments</div>
+  <div class="metric-card">
+    {% for m in report_data.weak_moments %}
+    <div style="margin-bottom:15px;padding-bottom:15px;{% if not loop.last %}border-bottom:1px solid #e5e7eb;{% endif %}">
+      <p style="font-size:10pt;color:#6b7280;margin:0 0 4px;">Turn {{ m.turn_index }} — <em>{{ m.issue }}</em></p>
+      <p style="background:#fef2f2;padding:8px 12px;border-radius:4px;font-size:10pt;color:#991b1b;margin:0 0 8px;"><strong>You said:</strong> {{ m.user_answer }}</p>
+      <p style="background:#f0fdf4;padding:8px 12px;border-radius:4px;font-size:10pt;color:#166534;margin:0;"><strong>Ideal:</strong> {{ m.ideal_rewrite }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if report_data.ideal_rewrites and report_data.ideal_rewrites|length > 0 %}
+  <div class="section-title">Ideal Answer Rewrites</div>
+  <div class="metric-card">
+    <ol style="margin:0;padding-left:20px;">
+      {% for r in report_data.ideal_rewrites %}
+      <li style="margin-bottom:8px;font-size:10pt;">{{ r }}</li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
 
   <div class="section-title">Executive Summary</div>
   <div class="summary-card">

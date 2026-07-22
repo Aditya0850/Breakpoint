@@ -52,6 +52,7 @@ export default function Interview() {
   const [input, setInput] = useState('')
   const [error, setError] = useState(null)
   const [openingRequested, setOpeningRequested] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
   const scrollRef = useRef(null)
 
   // If the store's session doesn't match the URL (e.g. page refresh),
@@ -87,6 +88,17 @@ export default function Interview() {
     } finally {
       if (!terminated) finishAiStream()
     }
+  }
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  function fmtTime(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, '0')
+    const s = String(sec % 60).padStart(2, '0')
+    return `${m}:${s}`
   }
 
   // ASSUMPTION (unconfirmed): the interviewer's opening question is
@@ -212,12 +224,15 @@ export default function Interview() {
           </p>
           <p className="text-sm text-muted mt-0.5">{setup?.context}</p>
         </div>
-        <button
-          onClick={() => navigate(`/report/${sessionId}`)}
-          className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:border-border-light hover:text-primary transition-colors"
-        >
-          End session
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-mono text-dim tabular-nums">{fmtTime(elapsed)}</span>
+          <button
+            onClick={() => navigate(`/report/${sessionId}`)}
+            className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:border-border-light hover:text-primary transition-colors"
+          >
+            End session
+          </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
