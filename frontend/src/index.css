@@ -6,7 +6,7 @@
    values (for utility classes in Setup/Dashboard/Interview/Report),
    so every screen shares one visual identity instead of drifting. */
 @theme {
-  --color-base: #0A0A0F;
+  --color-bg-base: #0A0A0F;
   --color-surface: #111118;
   --color-elevated: #1A1A26;
   --color-hover: #20202E;
@@ -31,6 +31,6 @@ html, body, #root {
 }
 
 body {
-  background: var(--color-base);
-  color: var(--color-text-primary);
+  background: var(--color-bg-base);
+  color: var(--color-primary);
 }

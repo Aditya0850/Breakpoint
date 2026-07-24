@@ -251,7 +251,7 @@ export default function Setup() {
               <div className="flex flex-col gap-3">
                 {MODES.map((m) => (
                   <OptionCard key={m.id} selected={mode === m.id} onClick={() => pickMode(m.id)} className="px-5 py-5">
-                    <div className="font-semibold text-base text-[#3c3c87]">{m.label}</div>
+                    <div className="font-semibold text-[1rem] text-[#3c3c87]">{m.label}</div>
                     <div className="text-sm text-primary/70 mt-1 leading-relaxed">{m.desc}</div>
                   </OptionCard>
                 ))}

@@ -5,7 +5,7 @@
  */
 export default function PageShell({ children, className = '' }) {
   return (
-    <div className={`relative min-h-screen bg-base text-primary ${className}`}>
+    <div className={`relative min-h-screen bg-bg-base text-primary ${className}`}>
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-40"
         style={{
