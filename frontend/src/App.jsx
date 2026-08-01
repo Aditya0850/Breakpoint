@@ -1,18 +1,31 @@
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
-import Dashboard from './pages/Dashboard'
-import Setup from './pages/Setup'
-import Interview from './pages/Interview'
-import Report from './pages/Report'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Sessions = lazy(() => import('./pages/Sessions'))
+const Insights = lazy(() => import('./pages/Insights'))
+const Scenarios = lazy(() => import('./pages/Scenarios'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Interview = lazy(() => import('./pages/Interview'))
+const Report = lazy(() => import('./pages/Report'))
 
 const queryClient = new QueryClient()
 
-const PROTECTED_ROUTES = ['/dashboard', '/setup', '/interview', '/report']
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/setup',
+  '/sessions',
+  '/insights',
+  '/scenarios',
+  '/settings',
+  '/interview',
+  '/report',
+]
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -47,14 +60,26 @@ function AnimatedRoutes() {
   const shouldAnimate = PROTECTED_ROUTES.some((p) => location.pathname.startsWith(p))
 
   const page = (
-    <Routes location={location}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <Routes location={location}>
       <Route path="/" element={<Landing user={user} />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/setup" element={<Setup />} />
+      <Route path="/setup" element={<Navigate to="/scenarios" replace />} />
+      <Route path="/sessions" element={<Sessions />} />
+      <Route path="/insights" element={<Insights />} />
+      <Route path="/scenarios" element={<Scenarios />} />
+      <Route path="/settings" element={<Settings />} />
       <Route path="/interview/:sessionId" element={<Interview />} />
       <Route path="/report/:sessionId" element={<Report />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 
   if (!shouldAnimate) return page

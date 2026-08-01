@@ -57,23 +57,36 @@ class SessionManager:
                 "mood_timeline": timeline
             }).eq("id", session_id).execute()
 
-    def save_evaluation(self, session_id: str, report: dict):
-        self.db.table("sessions").update({
-            "evaluation_report": report
-        }).eq("id", session_id).execute()
+    def save_evaluation(self, session_id: str, report: dict, duration_sec: int = None):
 
-    def signup_user(self, email: str, password: str):
+        if duration_sec is not None:
+            report["duration_sec"] = duration_sec
+
+        self.db.table("sessions").update({"evaluation_report": report}).eq("id", session_id).execute()
+
+    def signup_user(self, email: str, password: str, first_name: str = None, last_name: str = None, role: str = None):
+
+        options = {}
+        if first_name or last_name or role:
+            options["data"] = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "role": role
+            }
 
         response = self.db.auth.sign_up({
             "email": email,
-            "password": password
+            "password": password,
+            "options": options
             })
 
         if response and response.user:
             try:
-                self.db.table("profiles").insert({
-                    "id": response.user.id
-                }).execute()
+                profile_data = {"id": response.user.id}
+                if first_name: profile_data["first_name"] = first_name
+                if last_name: profile_data["last_name"] = last_name
+                if role: profile_data["role"] = role
+                self.db.table("profiles").upsert(profile_data).execute()
             except Exception as e:
                 print(f"⚠️ Warning: Could not auto-generate profile row: {e}")
 
@@ -88,16 +101,16 @@ class SessionManager:
         
         return response
 
-    def create_or_get_profile(self, user_id: str, email: str = None, first_name: str = None, last_name: str = None):
+    def create_or_get_profile(self, user_id: str, first_name: str = None, last_name: str = None, role: str = None):
 
         existing = self.db.table("profiles").select("*").eq("id", user_id).execute()
         if existing.data:
             return existing.data[0]
 
         data = {"id": user_id}
-        if email: data["email"] = email
         if first_name: data["first_name"] = first_name
         if last_name: data["last_name"] = last_name
+        if role: data["role"] = role
 
         response = self.db.table("profiles").insert(data).execute()
         return response.data[0] if response.data else None

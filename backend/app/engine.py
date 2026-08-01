@@ -185,7 +185,14 @@ def generate_report_card(session_data: dict) -> dict:
                   }
               ],
               "ideal_rewrites": ["<rewritten version of a weak answer>", ...],
-              "executive_summary": "<Detailed paragraph analyzing the user's specific performance, de-escalation techniques used, and how well they managed the employee's mood>"
+              "executive_summary": "<Detailed paragraph analyzing the user's specific performance, de-escalation techniques used, and how well they managed the employee's mood>",
+              "skills": {
+                  "composure": <int between 0 and 100, keeping cool under pressure>,
+                  "structure": <int between 0 and 100, organized STAR-style answers>,
+                  "evidence": <int between 0 and 100, backing claims with concrete data/metrics>,
+                  "empathy": <int between 0 and 100, acknowledging the counterpart's perspective>,
+                  "decisiveness": <int between 0 and 100, committing to clear next steps>
+              }
         }
 
         Evaluation Rubric for User:
@@ -210,7 +217,16 @@ def generate_report_card(session_data: dict) -> dict:
 
     report = json.loads(response.choices[0].message.content)
     report["mood_timeline"] = session_data.get("mood_timeline", [])
-    
+
+    if not isinstance(report.get("skills"), dict):
+        report["skills"] = {
+            "composure": report.get("confidence_score", 70),
+            "structure": report.get("overall_score", 70),
+            "evidence": 50,
+            "empathy": 50,
+            "decisiveness": 50
+        }
+
     return report
 
 

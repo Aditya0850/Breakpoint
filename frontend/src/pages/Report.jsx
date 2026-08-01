@@ -36,7 +36,7 @@ function MoodTimeline({ points }) {
   return (
     <div className="rounded-xl border border-border bg-surface px-5 py-6">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none">
-        <path d={path} fill="none" stroke="var(--color-border-light)" strokeWidth="2" />
+        <path d={path} fill="none" stroke="var(--border-light)" strokeWidth="2" />
         {coords.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r="5" fill={moodColor(moods[i])} />
         ))}
@@ -46,6 +46,34 @@ function MoodTimeline({ points }) {
         <span>End</span>
       </div>
     </div>
+  )
+}
+
+function SkillBars({ skills }) {
+  if (!skills || Object.keys(skills).length === 0) return null
+  const entries = Object.entries(skills)
+  return (
+    <section className="mb-10">
+      <h2 className="text-sm font-medium text-muted mb-3 uppercase tracking-wider">Skill Breakdown</h2>
+      <div className="rounded-xl border border-border bg-surface p-6 flex flex-col gap-4">
+        {entries.map(([skill, value]) => (
+          <div key={skill}>
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-sm capitalize text-primary">{skill}</span>
+              <span className="text-xs font-mono text-muted tabular-nums">{value}/100</span>
+            </div>
+            <div className="h-2 rounded-full bg-background overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-accent"
+                initial={{ width: 0 }}
+                animate={{ width: `${value}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -61,6 +89,12 @@ export default function Report() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const moodHistory = useSessionStore((s) => s.moodHistory)
+  const storeSessionId = useSessionStore((s) => s.sessionId)
+  const storeDurationSec = useSessionStore((s) => s.durationSec)
+
+  // Only trust the store's elapsed time when the store is for THIS session —
+  // otherwise an unrelated (still-open) session would stamp the wrong duration.
+  const durationSec = storeSessionId === sessionId ? storeDurationSec : null
 
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -69,14 +103,14 @@ export default function Report() {
 
   useEffect(() => {
     let cancelled = false
-    evaluateSession(sessionId)
+    evaluateSession(sessionId, durationSec)
       .then((data) => !cancelled && setReport(data))
       .catch((err) => !cancelled && setError(err.message || 'Could not load the report.'))
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
     }
-  }, [sessionId])
+  }, [sessionId, durationSec])
 
   async function handleExport() {
     setExporting(true)
@@ -186,6 +220,9 @@ export default function Report() {
             <p className="text-sm text-primary leading-relaxed">{report.executive_summary}</p>
           </section>
         )}
+
+        {/* Skill Breakdown */}
+        <SkillBars skills={report?.skills} />
 
         {/* Mood Timeline */}
         <section className="mb-10">

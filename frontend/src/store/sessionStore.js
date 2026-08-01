@@ -15,9 +15,10 @@ export const useSessionStore = create((set, get) => ({
   streamingText: '',
   terminated: false,
   terminationReason: null,
+  durationSec: null,       // elapsed interview time, captured when the session ends
 
   startSession({ sessionId, setup }) {
-    set({ sessionId, setup, messages: [], currentMood: 5, moodHistory: [], terminated: false, terminationReason: null })
+    set({ sessionId, setup, messages: [], currentMood: 5, moodHistory: [], terminated: false, terminationReason: null, durationSec: null })
   },
 
   addUserMessage(content) {
@@ -67,13 +68,18 @@ export const useSessionStore = create((set, get) => ({
     })
   },
 
-  terminateSession(reason) {
+  terminateSession(reason, durationSec = null) {
     set({
       terminated: true,
       terminationReason: reason,
       isStreaming: false,
       streamingText: '',
+      durationSec,
     })
+  },
+
+  setDuration(durationSec) {
+    set({ durationSec })
   },
 
   reset() {
@@ -87,6 +93,7 @@ export const useSessionStore = create((set, get) => ({
       streamingText: '',
       terminated: false,
       terminationReason: null,
+      durationSec: null,
     })
   },
 }))

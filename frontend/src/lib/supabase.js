@@ -21,13 +21,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
  * tokens — it only *validates* the Supabase JWT on protected routes via
  * `Authorization: Bearer <token>`, and uses its service-role key
  * server-side for writes that need to bypass RLS.
- *
- * NOTE: the backend spec also lists POST /api/auth/signup and
- * /api/auth/login. Those appear to be legacy/alternate entry points
- * (e.g. for creating the matching `profiles` row). If your friend
- * confirms the backend expects to own signup, swap the calls below
- * for api.js POST calls instead — everything downstream (getToken)
- * still works the same way.
  */
 export async function signUp({ email, password, first_name, last_name, role }) {
   const { data, error } = await supabase.auth.signUp({
@@ -59,40 +52,173 @@ export async function getToken() {
   return data.session?.access_token ?? null
 }
 
+/* ── Profile ────────────────────────────────────────────────────── */
+
+const PROFILE_FALLBACK_KEY = 'sentinel.profile'
+
+const DEFAULT_PROFILE = {
+  first_name: '',
+  last_name: '',
+  role: 'student',
+  default_difficulty: 'Junior',
+  default_archetype: '',
+  interrupts: true,
+  harsh_feedback: true,
+}
+
+export async function getProfile() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ...DEFAULT_PROFILE, email: '' }
+
+  const meta = user.user_metadata ?? {}
+  const fallback = { ...DEFAULT_PROFILE, ...(readStoredProfile() ?? {}) }
+
+  let row = null
+  try {
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    row = data
+  } catch {
+    row = null
+  }
+
+  return {
+    first_name: row?.first_name ?? meta.first_name ?? fallback.first_name,
+    last_name: row?.last_name ?? meta.last_name ?? fallback.last_name,
+    role: row?.role ?? meta.role ?? fallback.role,
+    email: user.email ?? '',
+    default_difficulty: meta.default_difficulty ?? fallback.default_difficulty,
+    default_archetype: meta.default_archetype ?? fallback.default_archetype,
+    interrupts: meta.interrupts ?? fallback.interrupts,
+    harsh_feedback: meta.harsh_feedback ?? fallback.harsh_feedback,
+  }
+}
+
+export async function saveProfile(profile) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not signed in')
+
+  writeStoredProfile(profile)
+
+  try {
+    await supabase
+      .from('profiles')
+      .upsert({ id: user.id, first_name: profile.first_name, last_name: profile.last_name, role: profile.role })
+  } catch {
+    /* RLS may restrict direct writes — fall back to auth metadata only */
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      role: profile.role,
+      default_difficulty: profile.default_difficulty,
+      default_archetype: profile.default_archetype,
+      interrupts: profile.interrupts,
+      harsh_feedback: profile.harsh_feedback,
+    },
+  })
+  if (error) throw error
+}
+
+function readStoredProfile() {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_FALLBACK_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeStoredProfile(profile) {
+  try {
+    window.localStorage.setItem(PROFILE_FALLBACK_KEY, JSON.stringify(profile))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/* ── Sessions ───────────────────────────────────────────────────── */
+
 /**
- * Dashboard data — queried directly from Supabase, matching backend models:
+ * Full session rows for the current user — the single source of truth for
+ * Dashboard, Sessions and Insights. Matches the backend `sessions` table:
  * id, user_id, scenario, context, personality, brutal_mode, current_mood,
- * mood_timeline, history, evaluation_report, created_at.
+ * mood_timeline, history, evaluation_report, created_at. Duration is stored
+ * inside the evaluation_report jsonb blob (see save_evaluation), so it is
+ * read from there rather than as a dedicated column.
  */
-export async function fetchDashboardStats() {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { sessionsCompleted: 0, moodTrend: [], strongestArea: null, weakestArea: null, mostPracticedType: null }
+export async function fetchSessions() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
 
   const { data, error } = await supabase
     .from('sessions')
-    .select('scenario, current_mood, mood_timeline, evaluation_report, created_at')
+    .select('id, scenario, context, personality, brutal_mode, current_mood, mood_timeline, evaluation_report, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  const sessions = data ?? []
+  return data ?? []
+}
+
+/* ── Derived analytics (computed from fetchSessions) ────────────── */
+
+export function reportOf(session) {
+  const rep = session?.evaluation_report
+  return rep && typeof rep === 'object' ? rep : null
+}
+
+export function sessionScore(session) {
+  return reportOf(session)?.overall_score ?? null
+}
+
+export function sessionMinutes(session) {
+  const dur = session?.duration_sec ?? reportOf(session)?.duration_sec
+  if (dur) return Math.max(1, Math.round(dur / 60))
+  return null
+}
+
+export function endMoodOf(session) {
+  if (session?.current_mood != null) return session.current_mood
+  if (Array.isArray(session?.mood_timeline) && session.mood_timeline.length > 0) {
+    return session.mood_timeline[session.mood_timeline.length - 1]
+  }
+  return 5
+}
+
+export function aggregateAnalytics(sessions) {
+  const reports = sessions.map(reportOf).filter(Boolean)
+  const scores = reports.map((r) => r.overall_score).filter((s) => s != null)
+  const minutes = sessions.map(sessionMinutes).filter((m) => m != null)
 
   const typeCounts = {}
   const strongCounts = {}
   const weakCounts = {}
+  const skillSums = {}
+  const skillCounts = {}
 
   for (const s of sessions) {
     if (s.scenario) typeCounts[s.scenario] = (typeCounts[s.scenario] ?? 0) + 1
-    const rep = s.evaluation_report
-    if (rep && typeof rep === 'object') {
-      if (Array.isArray(rep.strengths)) {
-        for (const str of rep.strengths) {
-          strongCounts[str] = (strongCounts[str] ?? 0) + 1
-        }
-      }
-      if (Array.isArray(rep.critical_weaknesses)) {
-        for (const wk of rep.critical_weaknesses) {
-          weakCounts[wk] = (weakCounts[wk] ?? 0) + 1
+  }
+  for (const rep of reports) {
+    if (Array.isArray(rep.strengths)) {
+      for (const str of rep.strengths) strongCounts[str] = (strongCounts[str] ?? 0) + 1
+    }
+    if (Array.isArray(rep.critical_weaknesses)) {
+      for (const wk of rep.critical_weaknesses) weakCounts[wk] = (weakCounts[wk] ?? 0) + 1
+    }
+    if (rep.skills && typeof rep.skills === 'object') {
+      for (const [skill, value] of Object.entries(rep.skills)) {
+        if (typeof value === 'number') {
+          skillSums[skill] = (skillSums[skill] ?? 0) + value
+          skillCounts[skill] = (skillCounts[skill] ?? 0) + 1
         }
       }
     }
@@ -103,27 +229,25 @@ export async function fetchDashboardStats() {
 
   return {
     sessionsCompleted: sessions.length,
-    moodTrend: sessions.map((s) => ({
-      date: s.created_at,
-      endMood: s.current_mood ?? (Array.isArray(s.mood_timeline) ? s.mood_timeline[s.mood_timeline.length - 1] : 5),
-    })),
+    averageScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
+    bestScore: scores.length ? Math.max(...scores) : null,
+    totalMinutes: minutes.reduce((a, b) => a + b, 0),
     strongestArea: topOf(strongCounts),
     weakestArea: topOf(weakCounts),
     mostPracticedType: topOf(typeCounts),
+    moodTrend: sessions.map((s) => ({
+      date: s.created_at,
+      endMood: endMoodOf(s),
+    })),
+    skillBreakdown: Object.entries(skillCounts).map(([skill, count]) => ({
+      skill: skill.charAt(0).toUpperCase() + skill.slice(1),
+      score: Math.round(skillSums[skill] / count),
+    })),
+    recurringWeaknesses: Object.entries(weakCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([note, count]) => ({ note, count })),
+    recurringStrengths: Object.entries(strongCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([note, count]) => ({ note, count })),
   }
-}
-
-/** Session history list — matches backend sessions table schema. */
-export async function fetchSessionHistory() {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('id, scenario, current_mood, created_at, evaluation_report')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return data ?? []
 }

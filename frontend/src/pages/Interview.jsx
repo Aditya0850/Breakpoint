@@ -39,7 +39,6 @@ export default function Interview() {
     isStreaming,
     streamingText,
     terminated,
-    terminationReason,
     addUserMessage,
     beginAiStream,
     appendAiToken,
@@ -47,6 +46,7 @@ export default function Interview() {
     finishAiStream,
     terminateSession,
     addAudioTurn,
+    setDuration,
   } = useSessionStore()
 
   const [input, setInput] = useState('')
@@ -74,6 +74,7 @@ export default function Interview() {
           onToken: appendAiToken,
           onMood: applyMoodUpdate,
           onTerminate: (reason) => {
+            setDuration(elapsed)
             terminateSession(reason)
             navigate(`/report/${sessionId}?terminated=${encodeURIComponent(reason)}`)
           },
@@ -81,6 +82,7 @@ export default function Interview() {
       )
     } catch (err) {
       if (err.terminated) {
+        setDuration(elapsed)
         terminateSession(err.reason)
         navigate(`/report/${sessionId}?terminated=${encodeURIComponent(err.reason)}`)
       } else {
@@ -172,7 +174,7 @@ export default function Interview() {
 
       mediaRecorder.start()
       setRecording(true)
-    } catch (err) {
+    } catch {
       setError('Microphone access denied or unsupported.')
     }
   }
@@ -217,7 +219,7 @@ export default function Interview() {
             This interview link isn't tied to a session in progress. Start a new one to continue.
           </p>
           <button
-            onClick={() => navigate('/setup')}
+            onClick={() => navigate('/scenarios')}
             className="px-5 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-light transition-colors"
           >
             Start a session
@@ -248,7 +250,10 @@ export default function Interview() {
         <div className="flex items-center gap-4">
           <span className="text-sm font-mono text-dim tabular-nums">{fmtTime(elapsed)}</span>
           <button
-            onClick={() => navigate(`/report/${sessionId}`)}
+            onClick={() => {
+              setDuration(elapsed)
+              navigate(`/report/${sessionId}`)
+            }}
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:border-border-light hover:text-primary transition-colors"
           >
             End session

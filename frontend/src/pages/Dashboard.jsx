@@ -2,8 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { getDashboardStats, getSessionHistory } from '../lib/api'
-import { supabase } from '../lib/supabase'
+import { fetchSessions, aggregateAnalytics, getProfile, reportOf, endMoodOf } from '../lib/supabase'
 import PageShell from '../components/layout/PageShell'
 
 function Eyebrow({ children }) {
@@ -62,45 +61,42 @@ function greeting() {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState(null)
-  const [history, setHistory] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [sessions, setSessions] = useState([])
   const [firstName, setFirstName] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const latestReport = useMemo(() => {
-    if (!history) return null
-    const withReports = history.filter((s) => s.evaluation_report && typeof s.evaluation_report === 'object')
-    return withReports.length > 0 ? withReports[0].evaluation_report : null
-  }, [history])
+  const analytics = useMemo(() => aggregateAnalytics(sessions), [sessions])
+
+  const latestSession = useMemo(() => {
+    const withReports = sessions.filter((s) => reportOf(s))
+    return withReports.length > 0 ? withReports[withReports.length - 1] : null
+  }, [sessions])
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([getDashboardStats(), getSessionHistory()])
-      .then(([s, h]) => {
+    Promise.all([fetchSessions(), getProfile().catch(() => null)])
+      .then(([rows, profile]) => {
         if (cancelled) return
-        setStats(s)
-        setHistory(h)
+        setSessions(rows)
+        setFirstName(profile?.first_name ?? '')
       })
+      .catch((err) => !cancelled && setError(err.message || 'Could not load your progress.'))
       .finally(() => !cancelled && setLoading(false))
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.user_metadata?.first_name) {
-        setFirstName(data.user.user_metadata.first_name)
-      }
-    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const moodData = useMemo(() => {
-    if (!stats?.moodTrend) return []
-    return stats.moodTrend.map((p, i) => ({
+    return analytics.moodTrend.map((p, i) => ({
       session: i + 1,
       mood: p.endMood,
       date: p.date ? formatDate(p.date) : '',
     }))
-  }, [stats])
+  }, [analytics])
+
+  const history = useMemo(() => [...sessions].reverse(), [sessions])
 
   return (
     <PageShell className="px-6 py-14">
@@ -113,12 +109,18 @@ export default function Dashboard() {
             </h1>
           </div>
           <button
-            onClick={() => navigate('/setup')}
+            onClick={() => navigate('/scenarios')}
             className="px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-light transition-colors"
           >
             New session
           </button>
         </div>
+
+        {error && (
+          <div className="mb-8 rounded-xl border border-mood-cold/30 bg-mood-cold/5 px-5 py-4 text-sm text-mood-cold">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted">
@@ -127,67 +129,57 @@ export default function Dashboard() {
           </div>
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <button
-                onClick={() => navigate('/setup')}
-                className="rounded-xl border border-border bg-surface px-5 py-6 hover:border-accent/40 transition-colors text-left"
-              >
-                <span className="text-2xl">🎤</span>
-                <p className="text-sm font-semibold text-primary mt-2">Interview Practice</p>
-                <p className="text-xs text-muted mt-1">Prepare for job interviews</p>
-              </button>
-              <button
-                onClick={() => navigate('/setup')}
-                className="rounded-xl border border-border bg-surface px-5 py-6 hover:border-accent/40 transition-colors text-left"
-              >
-                <span className="text-2xl">📋</span>
-                <p className="text-sm font-semibold text-primary mt-2">Workplace Training</p>
-                <p className="text-xs text-muted mt-1">Practice soft skills & scenarios</p>
-              </button>
-            </div>
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
               <div className="rounded-xl border border-border bg-surface px-4 py-4 hover:border-border-light transition-colors">
                 <p className="text-xs text-muted mb-1">📊 Sessions</p>
-                <p className="text-xl font-semibold font-mono">{stats?.sessionsCompleted ?? '—'}</p>
+                <p className="text-xl font-semibold font-mono">{analytics.sessionsCompleted || '—'}</p>
               </div>
               <div className="rounded-xl border border-border bg-surface px-4 py-4 hover:border-border-light transition-colors">
-                <p className="text-xs text-muted mb-1">🏆 Strongest</p>
-                <p className="text-sm font-semibold text-primary truncate">{stats?.strongestArea ?? '—'}</p>
+                <p className="text-xs text-muted mb-1">🎯 Avg score</p>
+                <p className="text-xl font-semibold font-mono">
+                  {analytics.averageScore != null ? analytics.averageScore : '—'}
+                  {analytics.averageScore != null && <span className="text-sm text-dim">/100</span>}
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-surface px-4 py-4 hover:border-border-light transition-colors">
-                <p className="text-xs text-muted mb-1">⚠️ Weakest</p>
-                <p className="text-sm font-semibold text-primary truncate">{stats?.weakestArea ?? '—'}</p>
+                <p className="text-xs text-muted mb-1">⏱ Time practiced</p>
+                <p className="text-xl font-semibold font-mono">
+                  {analytics.totalMinutes > 0 ? analytics.totalMinutes : '—'}
+                  {analytics.totalMinutes > 0 && <span className="text-sm text-dim">m</span>}
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-surface px-4 py-4 hover:border-border-light transition-colors">
-                <p className="text-xs text-muted mb-1">🎯 Most practiced</p>
-                <p className="text-sm font-semibold text-primary truncate">{stats?.mostPracticedType ?? '—'}</p>
+                <p className="text-xs text-muted mb-1">🏆 Best score</p>
+                <p className="text-xl font-semibold font-mono">
+                  {analytics.bestScore != null ? analytics.bestScore : '—'}
+                  {analytics.bestScore != null && <span className="text-sm text-dim">/100</span>}
+                </p>
               </div>
             </div>
 
-            {latestReport && (
+            {latestSession && (
               <div className="rounded-xl border border-border bg-surface px-6 py-5 mb-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-medium text-muted">Latest report</h2>
+                  <h2 className="text-sm font-medium text-muted">Latest report — {latestSession.scenario}</h2>
                   <span
                     className="text-xs font-semibold px-2.5 py-1 rounded-full"
                     style={{
-                      background: `${verdictColor(latestReport.verdict)}15`,
-                      color: verdictColor(latestReport.verdict),
+                      background: `${verdictColor(reportOf(latestSession).verdict)}15`,
+                      color: verdictColor(reportOf(latestSession).verdict),
                     }}
                   >
-                    {latestReport.verdict ?? '—'}
+                    {reportOf(latestSession).verdict ?? '—'}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-6 mb-4">
-                  <ScoreRing score={latestReport.overall_score ?? 0} />
+                  <ScoreRing score={reportOf(latestSession).overall_score ?? 0} />
                   <div className="flex-1 grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-dim font-semibold uppercase tracking-wider mb-2">Strengths</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {(latestReport.strengths ?? []).length > 0
-                          ? latestReport.strengths.map((s, i) => (
+                        {(reportOf(latestSession).strengths ?? []).length > 0
+                          ? reportOf(latestSession).strengths.map((s, i) => (
                               <span key={i} className="text-xs px-2 py-1 rounded-md" style={{ background: 'var(--color-mood-warm)15', color: 'var(--color-mood-warm)' }}>{s}</span>
                             ))
                           : <span className="text-xs text-dim">—</span>}
@@ -196,8 +188,8 @@ export default function Dashboard() {
                     <div>
                       <p className="text-xs text-dim font-semibold uppercase tracking-wider mb-2">Weaknesses</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {(latestReport.critical_weaknesses ?? []).length > 0
-                          ? latestReport.critical_weaknesses.map((w, i) => (
+                        {(reportOf(latestSession).critical_weaknesses ?? []).length > 0
+                          ? reportOf(latestSession).critical_weaknesses.map((w, i) => (
                               <span key={i} className="text-xs px-2 py-1 rounded-md" style={{ background: 'var(--color-mood-cold)15', color: 'var(--color-mood-cold)' }}>{w}</span>
                             ))
                           : <span className="text-xs text-dim">—</span>}
@@ -206,14 +198,26 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {latestReport.executive_summary && (
+                {reportOf(latestSession).executive_summary && (
                   <details className="group">
                     <summary className="text-xs text-muted cursor-pointer hover:text-primary transition-colors select-none">
                       Executive summary
                     </summary>
-                    <p className="mt-2 text-sm text-primary leading-relaxed">{latestReport.executive_summary}</p>
+                    <p className="mt-2 text-sm text-primary leading-relaxed">{reportOf(latestSession).executive_summary}</p>
                   </details>
                 )}
+
+                <div className="mt-4 pt-4 border-t border-border/60 flex justify-between items-center">
+                  <span className="text-xs text-dim">
+                    End mood {endMoodOf(latestSession)}/10
+                  </span>
+                  <button
+                    onClick={() => navigate(`/report/${latestSession.id}`)}
+                    className="text-sm font-semibold text-accent hover:text-accent-light transition-colors"
+                  >
+                    View full report →
+                  </button>
+                </div>
               </div>
             )}
 
@@ -262,7 +266,7 @@ export default function Dashboard() {
                     You haven't completed a session yet.
                   </p>
                   <button
-                    onClick={() => navigate('/setup')}
+                    onClick={() => navigate('/scenarios')}
                     className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-light transition-colors"
                   >
                     Start your first session
@@ -271,13 +275,13 @@ export default function Dashboard() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {history.map((session) => {
-                    const report = session.evaluation_report
+                    const report = reportOf(session)
                     const score = report?.overall_score
                     const verdict = report?.verdict
                     return (
                       <button
-                        key={session.session_id ?? session.id}
-                        onClick={() => navigate(`/report/${session.session_id ?? session.id}`)}
+                        key={session.id}
+                        onClick={() => navigate(`/report/${session.id}`)}
                         className="text-left px-4 py-3 rounded-lg border border-border bg-surface hover:border-border-light transition-colors flex items-center justify-between gap-4"
                         style={{ borderLeftColor: verdict ? verdictColor(verdict) : 'var(--color-border)', borderLeftWidth: 3 }}
                       >

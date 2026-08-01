@@ -205,7 +205,8 @@ def eval_chat():
         from app.engine import generate_report_card
 
         evaluation_report = generate_report_card(session_details)
-        state_db.save_evaluation(data["session_id"], evaluation_report)
+        duration_sec = request.get_json().get("duration_sec")
+        state_db.save_evaluation(data["session_id"], evaluation_report, duration_sec)
 
         return jsonify(evaluation_report), 200
 
@@ -354,7 +355,13 @@ def signup():
 
     try:
 
-        auth_response = state_db.signup_user(data["email"], data["password"])
+        auth_response = state_db.signup_user(
+            data["email"],
+            data["password"],
+            first_name=data.get("first_name"),
+            last_name=data.get("last_name"),
+            role=data.get("role")
+        )
 
         return jsonify({
             "message": "User registered successfully",
@@ -393,14 +400,31 @@ def oauth_profile():
     try:
         profile = state_db.create_or_get_profile(
             user_id=g.user_id,
-            email=data.get("email"),
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
+            role=data.get("role")
         )
         return jsonify({"message": "Profile ready", "profile": profile}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@api.route('/scenarios', methods = ['GET'])
+@requires_auth
+def list_scenarios():
+
+    """Return the full scenario library (source of truth: prompts.json)."""
+
+    scenarios = []
+    for key, value in PROMPTS_DB.items():
+        scenarios.append({
+            "key": key,
+            "label": key,
+            "category": value.get("category", "General")
+        })
+
+    return jsonify({"scenarios": scenarios}), 200
+
 
 @api.route('/health', methods=['GET'])
 def health_check():

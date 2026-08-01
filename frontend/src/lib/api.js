@@ -120,9 +120,10 @@ export async function sendAudioTurn({ audioFile, sessionId }) {
 
 /* ── Evaluation & export ──────────────────────────────────────── */
 
-export async function evaluateSession(sessionId) {
+export async function evaluateSession(sessionId, durationSec) {
   const { data } = await api.post('/api/v1/evaluate', {
     session_id: sessionId,
+    duration_sec: durationSec,
   })
 
   return data
@@ -136,12 +137,16 @@ export async function exportReportPdf(sessionId) {
   return res.data
 }
 
+/* ── Scenario library ───────────────────────────────────────────── */
+
+export async function getScenarios() {
+  const { data } = await api.get('/api/v1/scenarios')
+  return data.scenarios ?? []
+}
+
 /* ── Dashboard ─────────────────────────────────────────────────── */
 
-export {
-  fetchDashboardStats as getDashboardStats,
-  fetchSessionHistory as getSessionHistory,
-} from './supabase'
+export { fetchSessions, getProfile, saveProfile, aggregateAnalytics } from './supabase'
 
 /* ── Auth ──────────────────────────────────────────────────────── */
 

@@ -2,25 +2,25 @@
 { box-sizing: border-box; margin: 0; padding: 0; }
 .view-auth
 {
-  --bg:           #0A0A0F;
-  --bg-surface:   #111118;
-  --bg-elevated:  #1A1A26;
-  --bg-input:     #13131C;
-  --border:       #1E1E2E;
-  --border-light: #2A2A3E;
-  --border-focus: #6E56CF;
-  --accent:       #6E56CF;
-  --accent-light: #A891FF;
+  --bg:           oklch(0.147 0.011 285);
+  --bg-surface:   oklch(0.181 0.014 284.9);
+  --bg-elevated:  oklch(0.224 0.023 284.4);
+  --bg-input:     oklch(0.16 0.012 285);
+  --border:       oklch(0.243 0.03 283.9);
+  --border-light: oklch(0.294 0.036 284);
+  --border-focus: oklch(0.542 0.179 288);
+  --accent:       oklch(0.542 0.179 288);
+  --accent-light: oklch(0.723 0.157 291.6);
   --accent-glow:  rgba(110,86,207,0.15);
   --accent-dim:   rgba(110,86,207,0.08);
-  --text-primary: #F0EEF8;
-  --text-muted:   #7B7A8E;
-  --text-dim:     #4A4858;
-  --mood-green:   #56CF8A;
-  --mood-amber:   #CF9E56;
-  --mood-red:     #CF5656;
+  --text-primary: oklch(0.954 0.013 295.3);
+  --text-muted:   oklch(0.587 0.03 287.7);
+  --text-dim:     oklch(0.41 0.027 290.9);
+  --mood-green:   oklch(0.768 0.148 155.4);
+  --mood-amber:   oklch(0.731 0.107 75.3);
+  --mood-red:     oklch(0.609 0.154 22.8);
   --error:        #FF6B6B;
-  --success:      #56CF8A;
+  --success:      oklch(0.768 0.148 155.4);
 }
 .view-auth, .view-auth
 { height: 100%; }
