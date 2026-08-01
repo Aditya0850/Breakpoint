@@ -166,6 +166,11 @@ class SessionManager:
         response = self.db.table("org_members").select("*").eq("org_id", org_id).eq("user_id", user_id).execute()
         return response.data[0] if response.data else None
 
+    def get_org(self, org_id: str):
+
+        response = self.db.table("organizations").select("*").eq("id", org_id).execute()
+        return response.data[0] if response.data else None
+
     def create_org(self, user_id: str, name: str):
 
         org_response = self.db.table("organizations").insert({"name": name}).execute()

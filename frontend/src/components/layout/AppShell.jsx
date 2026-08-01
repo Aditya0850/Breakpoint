@@ -20,7 +20,7 @@ const baseNav = [
   { to: '/sessions', label: 'Sessions', icon: History },
   { to: '/insights', label: 'Insights', icon: LineChart },
   { to: '/scenarios', label: 'Scenarios', icon: Swords },
-  { to: '/people', label: 'People', icon: Users },
+  { to: '/people', label: 'Organisation', icon: Users },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 

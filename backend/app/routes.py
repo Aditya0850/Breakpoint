@@ -489,6 +489,15 @@ def invite_org_member(org_id):
     if error == "user_not_found":
         return jsonify({"error": "No account found for that email — they must sign up first"}), 404
 
+    try:
+        from app.emailer import send_invite_email
+        org = state_db.get_org(org_id)
+        role_label = data.get("system_role", "member")
+        if org:
+            send_invite_email(email, org.get("name", "your team"), org_id, role_label)
+    except Exception as e:
+        print(f"⚠️  Invite email failed: {e}")
+
     return jsonify({"message": "Invite sent"}), 200
 
 @api.route('/orgs/<org_id>/join', methods = ['POST'])
