@@ -26,9 +26,33 @@ Sentinel introduces an adaptive AI interviewer powered by a dynamic mood engine.
 
 Every session consists of three phases:
 
-1. **Setup** — The user configures the scenario (role, interview type, style archetype, difficulty).
-2. **Simulation** — The AI interviewer runs the session with dynamic mood shifts (1–10 scale) based on answer quality. Hostile Termination, Technical Defense, PR Crisis, and 11 other scenarios available.
-3. **Evaluation** — After the interview, Sentinel generates a detailed report with overall score, verdict, strengths, weaknesses, mood timeline, and executive summary. PDF export available.
+1. **Scenario selection** — The user picks from 14 scenarios (Firing an Employee, Handling a PR Crisis, Defending a Technical Architecture, etc.), tunes the difficulty, and optionally enables **brutal mode** for an aggressive interviewer.
+2. **Simulation** — The AI interviewer runs the session with dynamic mood shifts (1–10 scale) based on answer quality. Text or voice input, streaming responses, filler-word detection, and toxicity flagging.
+3. **Evaluation** — After the interview, Sentinel generates a detailed report with overall score, verdict, strengths/weaknesses, skill bars, weak-moment rewrites, mood timeline, and executive summary. PDF export available.
+
+After a session, the **candidate workspace** surfaces everything in one place:
+
+- **Dashboard** — sign-in streak, latest report card, recent session history
+- **Sessions** — full history with per-session mood deltas and verdicts
+- **Insights** — aggregate mood trend, average skill scores, recurring strengths/weaknesses
+
+---
+
+## Pages
+
+| Route | Page |
+|-------|------|
+| `/` | Landing |
+| `/auth` | Sign in / create account (email + password) |
+| `/scenarios` | Scenario library + session setup |
+| `/interview/:sessionId` | Live AI interview |
+| `/report/:sessionId` | Report card + PDF export |
+| `/dashboard` | Candidate dashboard |
+| `/sessions` | Session history |
+| `/insights` | Aggregate analytics |
+| `/settings` | Profile + defaults |
+
+(`/setup` redirects to `/scenarios` for backward compatibility.)
 
 ---
 
@@ -45,14 +69,14 @@ Every session consists of three phases:
 
 | Layer | Stack |
 |-------|-------|
-| Frontend | React 19, Vite 8, Tailwind CSS v4, Framer Motion, Zustand, React Query |
-| Backend | Flask (Python), Groq SDK (Llama 3.3-70b), spaCy, scikit-learn |
-| Database | PostgreSQL via Supabase |
+| Frontend | React 19, Vite, Tailwind CSS v4, Framer Motion, Zustand, React Query, Recharts, shadcn-style components |
+| Backend | Flask (Python), Groq SDK (Llama 3.3-70B), Whisper (audio transcription), spaCy, scikit-learn (toxicity model) |
+| Database | PostgreSQL via Supabase with Row Level Security |
 | PDF | WeasyPrint |
-| Auth | Supabase Auth (JWT) |
+| Auth | Supabase Auth (email + password, JWT) |
 
 ---
 
 ## Project Status
 
-**MVP — Complete.** Core simulation, evaluation, and dashboard features are implemented. The project was developed for VibeForge 1.0 Hackathon.
+**MVP — Complete.** Core simulation, evaluation, analytics, and candidate workspace features are implemented. The project was developed for VibeForge 1.0 Hackathon.

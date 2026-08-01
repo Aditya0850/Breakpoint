@@ -49,7 +49,21 @@ Criteria: De-escalation, clarity, professionalism, and logic.
 Output ONLY the integer (-2, -1, 0, 1, or 2). Do not output any other text or explanation.
 ```
 
-**Model:** `llama-3.1-8b-instant`, temperature `0.0`
+**Model:** `llama-3.1-8b-instant`, temperature `0.0`, `max_tokens` 5
+
+---
+
+## Live Interview (engine.py:generate_interview_response)
+
+The adversarial AI interviewer itself runs on **`llama-3.3-70b-versatile`** with the
+system instruction built by `build_system_instruction()`.
+
+---
+
+## Audio Transcription (engine.py:transcribe_audio_file)
+
+Recorded answers are transcribed with **`whisper-large-v3`** (`response_format: text`),
+preserving filler words verbatim.
 
 ---
 
@@ -72,16 +86,39 @@ CRITICAL INSTRUCTION:
 You must output a strictly formatted JSON object matching this schema:
 {
   "overall_score": <int 0-100>,
+  "confidence_score": <int 0-100>,
   "verdict": "<STRONG HIRE | HIRE | LEANING NO HIRE | NO HIRE>",
   "strengths": ["string", ...],
   "critical_weaknesses": ["string", ...],
-  "executive_summary": "<detailed analysis paragraph>"
+  "weak_moments": [
+    {
+      "turn_index": <int>,
+      "user_answer": "<original answer>",
+      "issue": "<why it was weak>",
+      "ideal_rewrite": "<STAR-style rewrite>"
+    }
+  ],
+  "ideal_rewrites": ["string", ...],
+  "executive_summary": "<detailed analysis paragraph>",
+  "skills": {
+    "composure": <int 0-100>,
+    "structure": <int 0-100>,
+    "evidence": <int 0-100>,
+    "empathy": <int 0-100>,
+    "decisiveness": <int 0-100>
+  }
 }
 
 Evaluation Rubric:
 1. Accountability
 2. Tone & De-escalation
 3. Resolution Focus
+4. Confidence & Language
 ```
 
+The backend then appends `mood_timeline` from the session. If the model omits the
+`skills` object, `generate_report_card` fills it from `confidence_score`/`overall_score`
+with sensible defaults.
+
 **Model:** `llama-3.3-70b-versatile`, temperature `0.3`, `response_format: {"type": "json_object"}`
+

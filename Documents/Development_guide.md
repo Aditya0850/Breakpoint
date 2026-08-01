@@ -4,37 +4,129 @@
 
 ```
 Breakpoint/
-├── backend/          # Flask API
+├── backend/                 # Flask API
 │   ├── app/
-│   │   ├── engine.py       # LLM interaction, mood engine, report generation
-│   │   ├── models.py       # Supabase client + SessionManager
-│   │   ├── routes.py       # API route definitions
-│   │   ├── utils.py        # Auth decorators, filler word analysis
-│   │   ├── prompts.json    # Scenario prompt templates
-│   │   └── templates/      # HTML templates for PDF export
-│   ├── run.py              # Application entry point
-│   ├── pyproject.toml      # Python dependencies (uv)
-│   └── .env                # Environment variables
-├── frontend/         # React SPA
+│   │   ├── engine.py        # LLM interaction, mood engine, report generation
+│   │   ├── models.py        # Supabase client + SessionManager
+│   │   ├── routes.py        # API route definitions (Flask blueprint)
+│   │   ├── utils.py         # Auth decorators, filler word analysis
+│   │   ├── prompts.json     # Scenario prompt templates (14 scenarios)
+│   │   └── templates/       # HTML templates for PDF export
+│   ├── run.py               # Application entry point
+│   ├── pyproject.toml       # Python dependencies (uv) + uv.lock
+│   ├── requirements.txt     # Dependency mirror
+│   ├── Aptfile              # System deps for WeasyPrint on Render
+│   ├── Procfile             # Render start command (gunicorn)
+│   ├── render-build.sh      # Render build: deps + frontend build + static copy
+│   ├── toxicity_model.pkl   # ML toxicity classifier (scikit-learn)
+│   └── .env                 # Environment variables (gitignored)
+├── frontend/                # React SPA
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── lib/            # API client, Supabase client, utilities
-│   │   ├── pages/          # Page components (Landing, Auth, Setup, Interview, Dashboard, Report)
-│   │   ├── store/          # Zustand stores
-│   │   ├── App.jsx         # App root with routing
-│   │   └── main.jsx        # Entry point
-│   ├── public/             # Static assets
+│   │   ├── components/
+│   │   │   ├── layout/      # AppShell (sidebar shell), PageShell
+│   │   │   └── ui/          # shadcn-style primitives (button, card, input…)
+│   │   ├── lib/             # api.js, supabase.js, mood.js, utils.ts
+│   │   ├── pages/           # Landing, Auth, Dashboard, Sessions, Insights,
+│   │   │                    #   Scenarios, Settings, Interview, Report
+│   │   ├── store/           # sessionStore.js (Zustand)
+│   │   ├── App.jsx          # App root with routing
+│   │   └── main.jsx         # Entry point
+│   ├── .env.local           # Frontend env vars (gitignored)
+│   ├── .env.example         # Frontend env template
 │   └── package.json
-├── Documents/        # Project documentation
-│   ├── Overview.md
-│   ├── api_Contract.md
-│   ├── Database_Schema.md
-│   ├── Design_System.md
-│   ├── Development_guide.md
-│   ├── Demo_script.md
-│   └── Prompts.md
+├── supabase/
+│   └── migrations/
+│       └── 0001_enable_rls.sql   # RLS policies (apply in Supabase SQL Editor)
+├── Documents/               # Project documentation
 └── README.md
 ```
+
+---
+
+## Environment Variables
+
+**Backend** (`backend/.env` — copy `backend/.env.example`):
+
+| Variable | Value |
+|----------|-------|
+| `SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `SUPABASE_KEY` | Service-role key (`sb_secret_...`) — bypasses RLS |
+| `GROQ_API_KEY` | Groq API key |
+| `GEMINI_API_KEY` | Optional / reserved |
+
+**Frontend** (`frontend/.env.local` — copy `frontend/.env.example`):
+
+| Variable | Value |
+|----------|-------|
+| `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Publishable key (`sb_publishable_...`) |
+| `VITE_API_BASE_URL` | Empty — Vite proxies `/api` → `localhost:5000` |
+
+> The backend uses the **service-role key** (bypasses RLS); the frontend uses the
+> **publishable key + the signed-in user's JWT** (subject to RLS). Never commit
+> either file.
+
+---
+
+## One-time Database Setup
+
+Run `supabase/migrations/0001_enable_rls.sql` once in Supabase Dashboard → SQL Editor.
+It enables Row Level Security and creates owner-scoped policies on `profiles` and
+`sessions`. Idempotent — safe to re-run.
+
+---
+
+## Running Locally
+
+### Backend (http://localhost:5000)
+```bash
+cd backend
+uv sync
+uv run python run.py
+```
+
+### Frontend (http://localhost:5173)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite proxies `/api` → `http://localhost:5000`, so `VITE_API_BASE_URL` stays empty.
+Verify the backend with `GET http://localhost:5000/api/v1/health` (→ `{"status":"online"}`)
+and browse Swagger at `http://localhost:5000/apidocs/`.
+
+### Manual test flow
+1. `/auth` → create an account (email + password)
+2. `/scenarios` → pick a scenario, optionally enable brutal mode, start
+3. `/interview/:sessionId` → send text or voice messages; watch the mood shift
+4. `/report/:sessionId` → end session, view the report card, export PDF
+5. `/dashboard`, `/sessions`, `/insights`, `/settings` → review history and analytics
+
+---
+
+## Lint & Build
+
+```bash
+cd frontend
+npm run lint   # oxlint
+npm run build  # production build → dist/
+```
+
+Backend sanity check: `python3 -m py_compile app/*.py` (from `backend/`).
+
+---
+
+## Deploying to Render
+
+1. Create a **Web Service** from the repo, root directory `/backend`.
+2. Build command: `./render-build.sh`
+3. Start command: `gunicorn run:app` (also defined in `backend/Procfile`).
+4. Set the `backend/.env` variables in the Render service.
+5. `render-build.sh` installs Python deps (`uv sync`), builds the frontend
+   (`npm ci && npm run build --prefix ../frontend`), and copies the output into
+   `backend/static/`. Flask serves the SPA and API on the same origin, so no CORS
+   config and an empty `VITE_API_BASE_URL` work in production.
 
 ---
 
@@ -70,19 +162,3 @@ docs:    Documentation
 - Loading states
 - Accessibility
 - Mobile tested
-
-## Running Locally
-
-### Backend
-```bash
-cd backend
-uv sync
-uv run python run.py
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```

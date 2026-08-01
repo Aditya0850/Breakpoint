@@ -10,44 +10,42 @@ Show the hero section. Explain the problem: "AI interviewers that actually push 
 ---
 
 ### 0:15 — Auth
-Sign in / Sign up flow (email + password via Supabase).
+Sign in / Sign up flow (email + password via Supabase Auth).
 
 ---
 
-### 0:30 — Setup
-Configure a session:
-- Role: "Senior Software Engineer"
-- Interview type: "Behavioral"
-- Style archetype: "Corporate"
-- Difficulty: "Senior"
+### 0:30 — Scenario Selection
+Open `/scenarios` and show the scenario library. Pick one, e.g. **Firing an Employee**:
+- Toggle **brutal mode** on
+- Optionally add context
 
-Show the available scenario options.
+Start the session. Mention there are 14 scenarios across 6 categories.
 
 ---
 
 ### 0:45 — Live Interview
-Start the session. Send a few messages and demonstrate:
+Send a few messages (type or use the mic) and demonstrate:
 - AI responds with adaptive tone
-- Mood badge changes (Neutral → Skeptical → Impressed)
+- Mood badge / ambient bar shifts (Neutral → Skeptical → Impressed)
 - Filler word detection
-- SSE streaming
+- SSE streaming (responses stream in chunks)
 
 ---
 
-### 1:10 — Evaluation
-End session → /evaluate. Show the generated report:
-- Overall score
-- Verdict badge
-- Strengths / Weaknesses
+### 1:10 — Report Card
+End the session → `/report/:sessionId`. Show the generated report:
+- Overall score + verdict badge
+- Strengths / critical weaknesses
+- Skill bars (composure, structure, evidence, empathy, decisiveness)
 - Mood timeline
 - Executive summary
 
 ---
 
-### 1:30 — Dashboard
-- Session history list
-- Latest report card
-- PDF export
+### 1:30 — Candidate Workspace
+- **Dashboard** — streak, latest report card, session history
+- **Sessions** — full history with mood deltas and verdicts
+- **Insights** — mood trend + aggregate skill analytics
 
 ---
 
@@ -57,4 +55,4 @@ Download the report as PDF via `/api/v1/export/{session_id}`.
 ---
 
 ### 1:55 — Wrap
-Mention: "Built for VibeForge 1.0 — fully functional MVP with 14 scenarios."
+Mention: "Built for VibeForge 1.0 — fully functional MVP with 14 scenarios and an adaptive AI mood engine."

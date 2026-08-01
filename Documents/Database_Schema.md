@@ -1,7 +1,9 @@
 # Database Schema
 
 ## profiles
-Stores user profile information.
+Stores user profile information. A row is created by the backend on signup
+(`POST /auth/signup`) or OAuth backfill (`POST /auth/oauth/profile`) using the
+service-role key — the frontend never creates it directly.
 
 | Column       | Type      | Description              |
 |--------------|-----------|--------------------------|
@@ -10,6 +12,10 @@ Stores user profile information.
 | created_at   | timestamp | Auto-generated creation timestamp |
 | first_name   | text      | User's first name |
 | last_name    | text      | User's last name |
+
+User preferences (`default_difficulty`, `default_archetype`, `interrupts`,
+`harsh_feedback`) live in Supabase **auth metadata** (`auth.users.raw_user_meta_data`),
+not in `profiles`.
 
 ---
 
@@ -47,6 +53,8 @@ The `sessions` table stores the full conversation history and evaluation reports
 ## Row Level Security
 
 Both tables have RLS **enabled** and every policy is scoped to the row owner (`auth.uid()`). See `supabase/migrations/0001_enable_rls.sql` for the canonical, idempotent SQL.
+
+> **Apply it once:** paste the migration into Supabase Dashboard → SQL Editor and run it. It is idempotent, so re-running is safe.
 
 | Table | Policy | Operation | Allow when |
 |-------|--------|-----------|------------|
