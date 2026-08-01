@@ -47,6 +47,8 @@ End the session → `/report/:sessionId`. Show the generated report:
 - **Sessions** — full history with mood deltas and verdicts
 - **Insights** — mood trend + aggregate skill analytics
 
+*(Optional, if demoing teams)* — **Organisation** (`/people`): create an org, invite a colleague by email, show the pending-invite banner + Accept, and expand a member's row to reveal their sessions and report card.
+
 ---
 
 ### 1:45 — Export PDF

@@ -122,6 +122,23 @@ Return the current user's most recent active membership and its organization (bo
 }
 ```
 
+### GET /orgs/pending
+Return every invitation sent to the current user that is still `status: "invited"` (used by the dashboard banner / Organisation page Accept button).
+
+**Response (200):**
+```json
+{
+  "invites": [
+    {
+      "org": { "id": "uuid", "name": "Acme Corp", "settings": {}, "created_at": "..." },
+      "membership": { "user_id": "uuid", "org_id": "uuid", "system_role": "member", "status": "invited" }
+    }
+  ]
+}
+```
+
+Accepts via `POST /orgs/{org_id}/join` (below).
+
 ### POST /orgs/{org_id}/join
 Join an organization (by invite code = org id). Activates an existing `invited` membership or creates an `active` `member` one.
 
@@ -129,6 +146,8 @@ Join an organization (by invite code = org id). Activates an existing `invited` 
 
 ### POST /orgs/{org_id}/invite
 Invite an existing user by email. **Admin only** (403 otherwise).
+
+When SMTP is configured (`SMTP_*` in `backend/.env`), a `send_invite_email` is dispatched; if not configured, the email is skipped gracefully and the invite still appears in the invitee's pending list. A 404 is returned when no account exists for the email (they must sign up first).
 
 **Request:**
 ```json
@@ -255,6 +274,8 @@ Send an audio message in an active session (transcribed with Whisper).
 
 ### POST /evaluate
 Generate a performance report for a completed session. The optional `duration_sec` is embedded into the stored `evaluation_report` jsonb blob (there is no dedicated column).
+
+Ownership: the session owner, or an active `admin`/`hr` member of the same org as the session owner (org staff). Anyone else gets `404 Session not found or expired`.
 
 **Request:**
 ```json

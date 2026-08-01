@@ -10,6 +10,7 @@ Breakpoint/
 │   │   ├── models.py        # Supabase client + SessionManager
 │   │   ├── routes.py        # API route definitions (Flask blueprint)
 │   │   ├── utils.py         # Auth decorators, filler word analysis
+│   │   ├── emailer.py       # SMTP invite emails (stdlib smtplib)
 │   │   ├── prompts.json     # Scenario prompt templates (14 scenarios)
 │   │   └── templates/       # HTML templates for PDF export
 │   ├── run.py               # Application entry point
@@ -54,6 +55,11 @@ Breakpoint/
 | `SUPABASE_KEY` | Service-role key (`sb_secret_...`) — bypasses RLS |
 | `GROQ_API_KEY` | Groq API key |
 | `GEMINI_API_KEY` | Optional / reserved |
+| `SMTP_HOST` | SMTP server host (e.g. `smtp.gmail.com`) — blank disables emails |
+| `SMTP_PORT` | SMTP port (default `587`) |
+| `SMTP_USER` | SMTP username |
+| `SMTP_PASSWORD` | SMTP password / app password |
+| `SMTP_FROM` | From address (defaults to `SMTP_USER`) |
 
 **Frontend** (`frontend/.env.local` — copy `frontend/.env.example`):
 
@@ -101,11 +107,12 @@ and browse Swagger at `http://localhost:5000/apidocs/`.
 
 ### Manual test flow
 1. `/auth` → create an account (email + password)
-2. `/people` → create an organization (or join with a code); invite a second account to test roles
-3. `/scenarios` → pick a scenario, optionally enable brutal mode, start
-4. `/interview/:sessionId` → send text or voice messages; watch the mood shift
-5. `/report/:sessionId` → end session, view the report card, export PDF
-6. `/dashboard`, `/sessions`, `/insights`, `/settings` → review history and analytics
+2. `/people` (Organisation) → create an organization (or join with a code); invite a second account to test roles — when SMTP is set, check the invitee's inbox for the invite email, and the pending-invite banner on their dashboard
+3. As an active `admin`/`hr`, expand a teammate's row in the Organisation roster to view their sessions/reports
+4. `/scenarios` → pick a scenario, optionally enable brutal mode, start
+5. `/interview/:sessionId` → send text or voice messages; watch the mood shift
+6. `/report/:sessionId` → end session, view the report card, export PDF
+7. `/dashboard`, `/sessions`, `/insights`, `/settings` → review history and analytics
 
 ---
 

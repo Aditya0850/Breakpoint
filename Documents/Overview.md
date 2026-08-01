@@ -32,9 +32,15 @@ Every session consists of three phases:
 
 After a session, the **candidate workspace** surfaces everything in one place:
 
-- **Dashboard** — sign-in streak, latest report card, recent session history
+- **Dashboard** — sign-in streak, latest report card, recent session history, and any pending org invitations
 - **Sessions** — full history with per-session mood deltas and verdicts
 - **Insights** — aggregate mood trend, average skill scores, recurring strengths/weaknesses
+
+For teams, the **Organisation** page (route `/people`) provides a multi-tenant workspace:
+
+- Create an organization — the creator becomes its `admin`; the org's UUID doubles as the join invite code
+- Invite colleagues by email (`admin`/`hr`/`member` roles) — an SMTP email is sent when configured, and the invitee always sees pending invitations on their dashboard with an **Accept** button
+- Roster + role management, and — for active `admin`/`hr` members — expandable rows that reveal each teammate's sessions and report cards (scoped by Row Level Security)
 
 ---
 
@@ -50,6 +56,7 @@ After a session, the **candidate workspace** surfaces everything in one place:
 | `/dashboard` | Candidate dashboard |
 | `/sessions` | Session history |
 | `/insights` | Aggregate analytics |
+| `/people` | **Organisation** workspace (roster, roles, invites, member sessions) |
 | `/settings` | Profile + defaults |
 
 (`/setup` redirects to `/scenarios` for backward compatibility.)
@@ -70,7 +77,7 @@ After a session, the **candidate workspace** surfaces everything in one place:
 | Layer | Stack |
 |-------|-------|
 | Frontend | React 19, Vite, Tailwind CSS v4, Framer Motion, Zustand, React Query, Recharts, shadcn-style components |
-| Backend | Flask (Python), Groq SDK (Llama 3.3-70B), Whisper (audio transcription), spaCy, scikit-learn (toxicity model) |
+| Backend | Flask (Python), Groq SDK (Llama 3.3-70B), Whisper (audio transcription), spaCy, scikit-learn (toxicity model), smtplib (invite email) |
 | Database | PostgreSQL via Supabase with Row Level Security |
 | PDF | WeasyPrint |
 | Auth | Supabase Auth (email + password, JWT) |

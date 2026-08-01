@@ -12,7 +12,9 @@ Sentinel doesn't ask scripted questions. A dynamic **mood engine** (1–10 scale
 - **Live interview** — text or voice input, streaming responses (SSE), filler-word detection, toxicity flagging
 - **Report card** — overall score, verdict (STRONG HIRE → NO HIRE), strengths/weaknesses, skill bars, weak-moment rewrites, executive summary, PDF export
 - **Candidate workspace** — Dashboard (streak, latest report, history), Sessions, Insights (mood trend, skill analytics), Settings
-- **Team workspace** — multi-tenant organizations with `admin`/`hr`/`member` roles, email invites, and a People page for roster + role management
+- **Team workspace** — multi-tenant organizations with `admin`/`hr`/`member` roles, email + in-app invites, and an **Organisation** page (roster/role management, pending invitations, org invite code)
+- **Org staff visibility** — active `admin`/`hr` members can expand a teammate in the roster and view their sessions and reports (RLS-scoped)
+- **Invite emails** — optional SMTP (Gmail etc.) so invites land in the invitee's inbox; if unconfigured, invites still appear on the invitee's dashboard
 - **Owned-data isolation** — Supabase Row Level Security scopes every row to the signed-in user (org staff can read their org's data)
 
 ## Documentation
@@ -30,7 +32,7 @@ Sentinel doesn't ask scripted questions. A dynamic **mood engine** (1–10 scale
 | Layer | Stack |
 |-------|-------|
 | Frontend | React 19, Vite, Tailwind CSS v4, Framer Motion, Zustand, React Query, Recharts, shadcn-style components |
-| Backend | Flask (Python), Groq (Llama 3.3-70B), Whisper (transcription), scikit-learn (toxicity model) |
+| Backend | Flask (Python), Groq (Llama 3.3-70B), Whisper (transcription), scikit-learn (toxicity model), smtplib (invite email) |
 | Database | PostgreSQL via Supabase (RLS) |
 | Auth | Supabase Auth (email + password, JWT) |
 | PDF | WeasyPrint |
@@ -44,6 +46,14 @@ SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_KEY=<service-role key, sb_secret_...>
 GROQ_API_KEY=<groq key>
 GEMINI_API_KEY=<optional>
+
+# Optional — sends org invite emails. Leave blank to skip emailing
+# (invites still show in-app on the invitee's dashboard).
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=<app password>
+SMTP_FROM=you@gmail.com
 ```
 
 Create `frontend/.env.local` (copy `frontend/.env.example`):
