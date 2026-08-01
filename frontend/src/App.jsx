@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { useEffect, useState, lazy, Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from './components/ui/sonner'
 import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
@@ -108,6 +109,7 @@ export default function App() {
       <BrowserRouter>
         <AnimatedRoutes />
       </BrowserRouter>
+      <Toaster />
     </QueryClientProvider>
   )
 }

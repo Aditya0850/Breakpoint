@@ -160,8 +160,24 @@ export async function fetchSessions() {
 
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scenario, context, personality, brutal_mode, current_mood, mood_timeline, evaluation_report, created_at')
+    .select('id, user_id, scenario, context, personality, brutal_mode, current_mood, mood_timeline, evaluation_report, created_at')
     .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+
+/**
+ * Sessions for a specific user. RLS (sessions_select_org_staff) ensures this
+ * only returns rows when the caller is an active admin/hr in the same org as
+ * the given user; otherwise it resolves to an empty list.
+ */
+export async function fetchMemberSessions(userId) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, user_id, scenario, context, personality, brutal_mode, current_mood, mood_timeline, evaluation_report, created_at')
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
   if (error) throw error

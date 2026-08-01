@@ -184,6 +184,11 @@ export async function getMyOrg() {
   return data
 }
 
+export async function fetchPendingInvites() {
+  const { data } = await api.get('/api/v1/orgs/pending')
+  return data.invites ?? []
+}
+
 export async function createOrg(name) {
   const { data } = await api.post('/api/v1/orgs', { name })
   return data

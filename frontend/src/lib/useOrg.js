@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getMyOrg } from './api'
+import { getMyOrg, fetchPendingInvites } from './api'
 
 // Module-level cache shared by every useOrg() consumer (AppShell nav gating,
 // People page, Settings). Multiple mounted instances stay in sync.
-let cache = { org: null, membership: null, loading: true }
+let cache = { org: null, membership: null, pendingInvites: [], loading: true }
 const listeners = new Set()
 let inflight = null
 
@@ -18,9 +18,16 @@ function setCache(next) {
 
 async function loadOrg() {
   if (inflight) return inflight
-  inflight = getMyOrg()
-    .then((d) => setCache({ org: d?.org ?? null, membership: d?.membership ?? null }))
-    .catch(() => setCache({ org: null, membership: null }))
+  inflight = Promise.all([getMyOrg(), fetchPendingInvites()])
+    .then(([d, invites]) =>
+      setCache({
+        org: d?.org ?? null,
+        membership: d?.membership ?? null,
+        pendingInvites: invites ?? [],
+        loading: false,
+      }),
+    )
+    .catch(() => setCache({ org: null, membership: null, pendingInvites: [], loading: false }))
     .finally(() => {
       inflight = null
     })
@@ -41,7 +48,7 @@ export function useOrg() {
   }, [])
 
   const reload = useCallback(() => {
-    cache = { org: null, membership: null, loading: true }
+    cache = { org: null, membership: null, pendingInvites: [], loading: true }
     emit()
     loadOrg()
   }, [])

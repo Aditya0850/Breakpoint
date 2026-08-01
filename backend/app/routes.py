@@ -23,6 +23,16 @@ def _org_admin(user_id: str, org_id: str):
         return False
     return bool(membership) and membership.get("status") == "active" and membership.get("system_role") == "admin"
 
+def _org_staff(user_id: str, org_id: str):
+
+    """True when the user has an active admin/hr membership in the org."""
+
+    try:
+        membership = state_db.get_membership(user_id, org_id)
+    except Exception:
+        return False
+    return bool(membership) and membership.get("status") == "active" and membership.get("system_role") in ("admin", "hr")
+
 @api.route('/start', methods = ['POST'])
 @requires_auth
 def start_session():
@@ -208,7 +218,14 @@ def eval_chat():
         return jsonify({"error": "Session not found or expired"}), 404
 
     if session_details.get("user_id") != g.user_id:
-        return jsonify({"error": "Session not found or expired"}), 404
+        owner_memberships = state_db.db.table("org_members").select("*").eq("user_id", session_details.get("user_id")).eq("status", "active").execute()
+        can_view = False
+        for m in owner_memberships.data or []:
+            if _org_staff(g.user_id, m["org_id"]):
+                can_view = True
+                break
+        if not can_view:
+            return jsonify({"error": "Session not found or expired"}), 404
 
     try:
 
@@ -442,6 +459,16 @@ def my_org():
     try:
         result = state_db.get_org_for_user(g.user_id)
         return jsonify(result or {"org": None, "membership": None}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/orgs/pending', methods = ['GET'])
+@requires_auth
+def pending_org_invites():
+
+    try:
+        invites = state_db.get_pending_invites(g.user_id)
+        return jsonify({"invites": invites}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

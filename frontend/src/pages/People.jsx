@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useOrg } from '../lib/useOrg'
 import {
@@ -9,11 +10,13 @@ import {
   updateMember,
   removeMember,
 } from '../lib/api'
+import { fetchMemberSessions, aggregateAnalytics, reportOf, sessionScore, sessionMinutes, endMoodOf } from '../lib/supabase'
+import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Building2, LogIn, Mail, Shield, Trash2, Users } from 'lucide-react'
+import { Building2, Check, ChevronDown, Copy, LogIn, Mail, Shield, Trash2, Users } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 const ROLE_OPTIONS = [
@@ -42,8 +45,98 @@ function RoleBadge({ role }) {
   )
 }
 
+function MemberSessions({ sessions }) {
+  const analytics = aggregateAnalytics(sessions)
+  const ordered = [...sessions].reverse()
+
+  return (
+    <div>
+      <div className="mb-4 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-elevated px-4 py-3">
+          <p className="text-[11px] text-muted">Sessions</p>
+          <p className="mt-0.5 text-lg font-semibold font-mono text-primary">
+            {analytics.sessionsCompleted}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-elevated px-4 py-3">
+          <p className="text-[11px] text-muted">Avg score</p>
+          <p className="mt-0.5 text-lg font-semibold font-mono text-primary">
+            {analytics.averageScore ?? '—'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-elevated px-4 py-3">
+          <p className="text-[11px] text-muted">Best score</p>
+          <p className="mt-0.5 text-lg font-semibold font-mono text-primary">
+            {analytics.bestScore ?? '—'}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {ordered.map((s) => {
+          const rep = reportOf(s)
+          const score = sessionScore(s)
+          const minutes = sessionMinutes(s)
+          return (
+            <div
+              key={s.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-elevated px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-primary">{s.scenario}</p>
+                <p className="text-xs text-dim">
+                  {new Date(s.created_at).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                  {minutes ? ` · ${minutes}m` : ''} · End mood {endMoodOf(s)}/10
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                {score != null && (
+                  <span
+                    className="text-sm font-mono font-semibold tabular-nums"
+                    style={{ color: moodColor(Math.max(1, Math.min(10, 1 + score / 12))) }}
+                  >
+                    {score}
+                  </span>
+                )}
+                {rep?.verdict && (
+                  <span
+                    className={cn(
+                      'inline-block rounded-lg border px-2.5 py-1 text-[11px] font-bold tracking-wide',
+                      verdictStyle(rep.verdict),
+                    )}
+                  >
+                    {rep.verdict}
+                  </span>
+                )}
+                <Link
+                  to={`/report/${s.id}`}
+                  className="shrink-0 text-sm font-semibold text-accent hover:text-accent-light transition-colors"
+                >
+                  Report →
+                </Link>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function verdictStyle(verdict) {
+  const v = (verdict || '').toUpperCase()
+  if (v.includes('STRONG HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
+  if (v.includes('HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
+  if (v.includes('NO HIRE')) return 'bg-mood-cold/10 text-mood-cold border-mood-cold/30'
+  return 'bg-mood-neutral/10 text-mood-neutral border-mood-neutral/30'
+}
+
 export default function People() {
-  const { org, membership, loading, isStaff, isAdmin, reload } = useOrg()
+  const { org, membership, loading, pendingInvites, isStaff, isAdmin, reload } = useOrg()
 
   const [tab, setTab] = useState('create')
   const [orgName, setOrgName] = useState('')
@@ -57,6 +150,62 @@ export default function People() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
   const [inviting, setInviting] = useState(false)
+
+  const [acceptingId, setAcceptingId] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  const [expandedMember, setExpandedMember] = useState(null)
+  const [memberSessions, setMemberSessions] = useState([])
+  const [memberSessionsLoading, setMemberSessionsLoading] = useState(false)
+  const [memberSessionsError, setMemberSessionsError] = useState(null)
+
+  const pending = pendingInvites?.[0] ?? null
+
+  async function toggleMember(member) {
+    if (expandedMember === member.user_id) {
+      setExpandedMember(null)
+      setMemberSessions([])
+      return
+    }
+    setExpandedMember(member.user_id)
+    setMemberSessions([])
+    setMemberSessionsError(null)
+    setMemberSessionsLoading(true)
+    try {
+      const rows = await fetchMemberSessions(member.user_id)
+      setMemberSessions(rows)
+    } catch (err) {
+      setMemberSessionsError(err.message || 'Could not load sessions.')
+    } finally {
+      setMemberSessionsLoading(false)
+    }
+  }
+
+  async function handleAcceptInvite(invite) {
+    if (!invite || acceptingId) return
+    setAcceptingId(invite.org.id)
+    try {
+      await joinOrg(invite.org.id)
+      toast.success(`Welcome to ${invite.org.name}!`)
+      setTab('create')
+      await reload()
+    } catch (err) {
+      toast.error(err.message || 'Could not accept invitation.')
+    } finally {
+      setAcceptingId(null)
+    }
+  }
+
+  async function copyOrgId() {
+    if (!org?.id) return
+    try {
+      await navigator.clipboard.writeText(org.id)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      toast.error('Could not copy the invite code.')
+    }
+  }
 
   useEffect(() => {
     if (!org?.id) return
@@ -150,10 +299,12 @@ export default function People() {
 
   if (loading) {
     return (
-      <PageShell className="flex items-center justify-center">
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-          Loading…
+      <PageShell className="px-6 py-12">
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+            Loading…
+          </div>
         </div>
       </PageShell>
     )
@@ -174,6 +325,33 @@ export default function People() {
               invite code.
             </p>
           </div>
+
+          {pending && (
+            <div className="mb-6 rounded-2xl border border-accent/40 bg-accent/10 p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+                Pending invitation
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/15 text-accent">
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-primary">{pending.org.name}</p>
+                  <p className="text-xs text-muted">
+                    {pending.membership.system_role === 'hr' ? 'HR' : 'Member'} role
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => handleAcceptInvite(pending)}
+                disabled={acceptingId !== null}
+                className="mt-4 w-full"
+              >
+                <Check className="mr-2 h-4 w-4" />
+                {acceptingId !== null ? 'Accepting…' : 'Accept invitation'}
+              </Button>
+            </div>
+          )}
 
           <div className="mb-6 flex rounded-xl border border-border bg-surface p-1">
             {[
@@ -263,6 +441,21 @@ export default function People() {
               </p>
             </div>
           </div>
+          {isStaff && (
+            <div className="mt-3 flex items-center gap-2">
+              <p className="text-xs text-muted">Invite code</p>
+              <code className="rounded-lg border border-border bg-elevated px-2 py-1 font-mono text-xs text-primary">
+                {org.id}
+              </code>
+              <button
+                onClick={copyOrgId}
+                title="Copy invite code"
+                className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          )}
         </div>
 
         {isStaff && (
@@ -320,56 +513,96 @@ export default function People() {
             {members.map((m) => {
               const isYou = m.user_id === yourUserId
               const displayName = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Member'
+              const isOpen = expandedMember === m.user_id
               return (
                 <div
                   key={m.id ?? m.user_id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-4"
+                  className={cn(
+                    'overflow-hidden rounded-2xl border bg-surface transition-colors',
+                    isOpen ? 'border-accent/50' : 'border-border',
+                  )}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-elevated text-xs font-bold text-muted-foreground">
-                      {(displayName.charAt(0) || '?').toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-primary">
-                        {displayName}
-                        {isYou && <span className="ml-2 text-xs font-medium text-dim">(you)</span>}
-                      </p>
-                      {m.email && <p className="truncate text-xs text-dim">{m.email}</p>}
+                  <div className="flex items-center justify-between gap-3 px-5 py-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-elevated text-xs font-bold text-muted-foreground">
+                        {(displayName.charAt(0) || '?').toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-primary">
+                          {displayName}
+                          {isYou && <span className="ml-2 text-xs font-medium text-dim">(you)</span>}
+                        </p>
+                        {m.email && <p className="truncate text-xs text-dim">{m.email}</p>}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {m.status === 'invited' && (
+                        <span className="rounded-lg border border-mood-neutral/30 bg-mood-neutral/10 px-2 py-0.5 text-[11px] font-semibold text-mood-neutral">
+                          Invited
+                        </span>
+                      )}
+                      {isAdmin && m.user_id !== yourUserId ? (
+                        <select
+                          value={m.system_role}
+                          onChange={(e) => handleRole(m.user_id, e.target.value)}
+                          className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-accent transition-colors"
+                          title="Change role"
+                        >
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <RoleBadge role={m.system_role} />
+                      )}
+                      {isAdmin && m.user_id !== yourUserId && (
+                        <button
+                          onClick={() => handleRemove(m.user_id)}
+                          aria-label={`Remove ${displayName}`}
+                          title="Remove member"
+                          className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-mood-cold"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {isStaff && (
+                        <button
+                          onClick={() => toggleMember(m)}
+                          aria-label={`View ${displayName}'s sessions`}
+                          title="View sessions"
+                          className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ChevronDown
+                            className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')}
+                          />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {m.status === 'invited' && (
-                      <span className="rounded-lg border border-mood-neutral/30 bg-mood-neutral/10 px-2 py-0.5 text-[11px] font-semibold text-mood-neutral">
-                        Invited
-                      </span>
-                    )}
-                    {isAdmin && m.user_id !== yourUserId ? (
-                      <select
-                        value={m.system_role}
-                        onChange={(e) => handleRole(m.user_id, e.target.value)}
-                        className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-primary focus:outline-none focus:border-accent transition-colors"
-                        title="Change role"
-                      >
-                        {ROLE_OPTIONS.map((r) => (
-                          <option key={r.value} value={r.value}>
-                            {r.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <RoleBadge role={m.system_role} />
-                    )}
-                    {isAdmin && m.user_id !== yourUserId && (
-                      <button
-                        onClick={() => handleRemove(m.user_id)}
-                        aria-label={`Remove ${displayName}`}
-                        title="Remove member"
-                        className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-mood-cold"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+
+                  {isOpen && (
+                    <div className="border-t border-border/60 px-5 py-4">
+                      {memberSessionsLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-muted">
+                          <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                          Loading sessions…
+                        </div>
+                      ) : memberSessionsError ? (
+                        <div className="rounded-lg border border-mood-cold/30 bg-mood-cold/5 px-4 py-3 text-sm text-mood-cold">
+                          {memberSessionsError}
+                        </div>
+                      ) : memberSessions.length === 0 ? (
+                        <p className="text-sm text-dim">
+                          No completed sessions yet — {displayName.split(' ')[0]} hasn't run a
+                          scenario.
+                        </p>
+                      ) : (
+                        <MemberSessions sessions={memberSessions} />
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}

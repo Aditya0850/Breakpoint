@@ -137,6 +137,30 @@ class SessionManager:
             }
         }
 
+    def get_pending_invites(self, user_id: str):
+
+        response = self.db.table("org_members").select("*").eq("user_id", user_id).eq("status", "invited").execute()
+        if not response.data:
+            return []
+
+        invites = []
+        for membership in response.data:
+            org_response = self.db.table("organizations").select("*").eq("id", membership["org_id"]).execute()
+            org = org_response.data[0] if org_response.data else None
+            if not org:
+                continue
+            invites.append({
+                "org": org,
+                "membership": {
+                    "user_id": membership["user_id"],
+                    "org_id": membership["org_id"],
+                    "system_role": membership["system_role"],
+                    "status": membership["status"]
+                }
+            })
+
+        return invites
+
     def get_membership(self, user_id: str, org_id: str):
 
         response = self.db.table("org_members").select("*").eq("org_id", org_id).eq("user_id", user_id).execute()

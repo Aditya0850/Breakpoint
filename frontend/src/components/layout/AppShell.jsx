@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { supabase, signOut } from '../../lib/supabase'
 import { useOrg } from '../../lib/useOrg'
+import { joinOrg } from '../../lib/api'
 import { cn } from '../../lib/utils'
 
 const baseNav = [
@@ -19,6 +20,7 @@ const baseNav = [
   { to: '/sessions', label: 'Sessions', icon: History },
   { to: '/insights', label: 'Insights', icon: LineChart },
   { to: '/scenarios', label: 'Scenarios', icon: Swords },
+  { to: '/people', label: 'People', icon: Users },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
@@ -79,18 +81,27 @@ function useShellData() {
 export default function AppShell({ children, className = '' }) {
   const navigate = useNavigate()
   const { name, email, streak } = useShellData()
-  const { org, loading: orgLoading, isStaff } = useOrg()
+  const { org, loading: orgLoading, pendingInvites, reload } = useOrg()
+  const [acceptingId, setAcceptingId] = useState(null)
   const initial = name.trim().charAt(0).toUpperCase() || 'S'
 
-  const nav = isStaff
-    ? [
-        ...baseNav.slice(0, 4),
-        { to: '/people', label: 'People', icon: Users },
-        baseNav[4],
-      ]
-    : baseNav
+  const nav = baseNav
 
   const showOrgPrompt = !orgLoading && !org
+  const pending = pendingInvites?.[0]
+
+  async function handleAcceptInvite() {
+    if (!pending || acceptingId) return
+    setAcceptingId(pending.org.id)
+    try {
+      await joinOrg(pending.org.id)
+      await reload()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setAcceptingId(null)
+    }
+  }
 
   async function handleSignOut() {
     await signOut()
@@ -198,17 +209,31 @@ export default function AppShell({ children, className = '' }) {
           {showOrgPrompt && (
             <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-accent/40 bg-accent/10 px-5 py-4">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-primary">You're not part of a team yet</p>
+                <p className="text-sm font-semibold text-primary">
+                  {pending ? `You've been invited to ${pending.org.name}` : "You're not part of a team yet"}
+                </p>
                 <p className="truncate text-xs text-muted">
-                  Create an organization or join one to unlock team features.
+                  {pending
+                    ? 'Accept the invitation to unlock team features.'
+                    : 'Create an organization or join one to unlock team features.'}
                 </p>
               </div>
-              <NavLink
-                to="/people"
-                className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-light"
-              >
-                Get started
-              </NavLink>
+              {pending ? (
+                <button
+                  onClick={handleAcceptInvite}
+                  disabled={acceptingId !== null}
+                  className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-light"
+                >
+                  {acceptingId !== null ? 'Accepting…' : 'Accept invite'}
+                </button>
+              ) : (
+                <NavLink
+                  to="/people"
+                  className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-light"
+                >
+                  Get started
+                </NavLink>
+              )}
             </div>
           )}
           {children}
