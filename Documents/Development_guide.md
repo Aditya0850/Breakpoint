@@ -25,9 +25,9 @@ Breakpoint/
 │   │   ├── components/
 │   │   │   ├── layout/      # AppShell (sidebar shell), PageShell
 │   │   │   └── ui/          # shadcn-style primitives (button, card, input…)
-│   │   ├── lib/             # api.js, supabase.js, mood.js, utils.ts
+│   │   ├── lib/             # api.js, supabase.js, mood.js, utils.ts, useOrg.js
 │   │   ├── pages/           # Landing, Auth, Dashboard, Sessions, Insights,
-│   │   │                    #   Scenarios, Settings, Interview, Report
+│   │   │                    #   Scenarios, People, Settings, Interview, Report
 │   │   ├── store/           # sessionStore.js (Zustand)
 │   │   ├── App.jsx          # App root with routing
 │   │   └── main.jsx         # Entry point
@@ -36,7 +36,8 @@ Breakpoint/
 │   └── package.json
 ├── supabase/
 │   └── migrations/
-│       └── 0001_enable_rls.sql   # RLS policies (apply in Supabase SQL Editor)
+│       ├── 0001_enable_rls.sql          # Owner-scoped RLS policies
+│       └── 0002_multi_tenant_orgs.sql   # Organizations + org-scoped policies
 ├── Documents/               # Project documentation
 └── README.md
 ```
@@ -70,9 +71,11 @@ Breakpoint/
 
 ## One-time Database Setup
 
-Run `supabase/migrations/0001_enable_rls.sql` once in Supabase Dashboard → SQL Editor.
-It enables Row Level Security and creates owner-scoped policies on `profiles` and
-`sessions`. Idempotent — safe to re-run.
+Run `supabase/migrations/0001_enable_rls.sql` and `0002_multi_tenant_orgs.sql`
+once in Supabase Dashboard → SQL Editor. 0001 enables Row Level Security and
+creates owner-scoped policies; 0002 adds `organizations`/`org_members` and
+org-scoped policies so HR/admins can read their org's data. Both are
+idempotent — safe to re-run.
 
 ---
 
@@ -98,10 +101,11 @@ and browse Swagger at `http://localhost:5000/apidocs/`.
 
 ### Manual test flow
 1. `/auth` → create an account (email + password)
-2. `/scenarios` → pick a scenario, optionally enable brutal mode, start
-3. `/interview/:sessionId` → send text or voice messages; watch the mood shift
-4. `/report/:sessionId` → end session, view the report card, export PDF
-5. `/dashboard`, `/sessions`, `/insights`, `/settings` → review history and analytics
+2. `/people` → create an organization (or join with a code); invite a second account to test roles
+3. `/scenarios` → pick a scenario, optionally enable brutal mode, start
+4. `/interview/:sessionId` → send text or voice messages; watch the mood shift
+5. `/report/:sessionId` → end session, view the report card, export PDF
+6. `/dashboard`, `/sessions`, `/insights`, `/settings` → review history and analytics
 
 ---
 

@@ -41,20 +41,52 @@ Stores simulation session data.
 ## Table Relationships
 
 ```
-profiles
+organizations
+  ↓ (org_id)
+org_members ──── profiles (via user_id)
   ↓ (user_id)
-sessions
+sessions (owned by profiles.id)
 ```
 
-The `sessions` table stores the full conversation history and evaluation reports as JSON blobs — no separate messages, evaluations, or mood_transitions tables are needed.
+- `sessions` stores the full conversation history and evaluation reports as JSON blobs — no separate messages, evaluations, or mood_transitions tables are needed.
+- `profiles.id` matches `auth.users.id`; `sessions.user_id` references it.
+
+---
+
+## organizations (0002)
+One row per company/team.
+
+| Column      | Type      | Description |
+|-------------|-----------|-------------|
+| id          | uuid      | Primary key (also used as the join invite code) |
+| name        | text      | Organization name |
+| settings    | jsonb     | Reserved for org-level config (default `{}`) |
+| created_at  | timestamptz | Auto-generated creation timestamp |
+
+## org_members (0002)
+Who belongs to which organization, with a **system role** (unrelated to `profiles.role`, which stays the user's *experience level*).
+
+| Column       | Type      | Description |
+|--------------|-----------|-------------|
+| id           | uuid      | Primary key |
+| org_id       | uuid      | FK → organizations.id (cascade delete) |
+| user_id      | uuid      | FK → auth.users.id (cascade delete) |
+| system_role  | text      | `admin` \| `hr` \| `member` (default `member`) |
+| status       | text      | `active` \| `invited` (default `active`) |
+| invited_by   | uuid      | FK → auth.users.id (who sent the invite, nullable) |
+| created_at   | timestamptz | Auto-generated creation timestamp |
+
+Unique constraint on `(org_id, user_id)`. All membership writes go through the backend (service key); the frontend only reads.
 
 ---
 
 ## Row Level Security
 
-Both tables have RLS **enabled** and every policy is scoped to the row owner (`auth.uid()`). See `supabase/migrations/0001_enable_rls.sql` for the canonical, idempotent SQL.
+Both tables have RLS **enabled** and every policy is scoped to the row owner (`auth.uid()`). See `supabase/migrations/0001_enable_rls.sql` (owner-scoped) and `supabase/migrations/0002_multi_tenant_orgs.sql` (org-scoped) for the canonical, idempotent SQL.
 
-> **Apply it once:** paste the migration into Supabase Dashboard → SQL Editor and run it. It is idempotent, so re-running is safe.
+> **Apply them once:** paste both migrations into Supabase Dashboard → SQL Editor and run them. They are idempotent, so re-running is safe.
+
+**Migration 0001 — owner-scoped:**
 
 | Table | Policy | Operation | Allow when |
 |-------|--------|-----------|------------|
@@ -65,6 +97,21 @@ Both tables have RLS **enabled** and every policy is scoped to the row owner (`a
 | sessions | `sessions_insert_own` | INSERT | `auth.uid() = user_id` |
 | sessions | `sessions_update_own` | UPDATE | `auth.uid() = user_id` |
 | sessions | `sessions_delete_own` | DELETE | `auth.uid() = user_id` |
+
+**Migration 0002 — org-scoped (added on top; policies OR together):**
+
+| Table | Policy | Operation | Allow when |
+|-------|--------|-----------|------------|
+| sessions | `sessions_select_org_staff` | SELECT | row owner is an active member of the same org as an active `admin`/`hr` member |
+| profiles | `profiles_select_org_staff` | SELECT | same-org active `admin`/`hr` member |
+| organizations | `orgs_select_member` | SELECT | current user is an active member |
+| organizations | `orgs_update_admin` | UPDATE | current user is the org admin |
+| org_members | `members_select_org` | SELECT | own row, or active member of the org |
+| org_members | `members_insert_admin` | INSERT | current user is the org admin |
+| org_members | `members_update_admin` | UPDATE | org admin, or the user themselves (role locked to `member`) |
+| org_members | `members_delete_admin` | DELETE | current user is the org admin |
+
+Helper functions `public.user_in_org(org_id)` and `public.user_is_admin(org_id)` (SECURITY DEFINER) keep the policies concise and recursion-free.
 
 Notes:
 - The Flask backend uses the **service-role key** (`sb_secret_...`), which bypasses RLS — all server-side writes are unaffected.

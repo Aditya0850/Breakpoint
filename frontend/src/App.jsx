@@ -11,6 +11,7 @@ const Sessions = lazy(() => import('./pages/Sessions'))
 const Insights = lazy(() => import('./pages/Insights'))
 const Scenarios = lazy(() => import('./pages/Scenarios'))
 const Settings = lazy(() => import('./pages/Settings'))
+const People = lazy(() => import('./pages/People'))
 const Interview = lazy(() => import('./pages/Interview'))
 const Report = lazy(() => import('./pages/Report'))
 
@@ -23,6 +24,7 @@ const PROTECTED_ROUTES = [
   '/insights',
   '/scenarios',
   '/settings',
+  '/people',
   '/interview',
   '/report',
 ]
@@ -76,6 +78,7 @@ function AnimatedRoutes() {
       <Route path="/insights" element={<Insights />} />
       <Route path="/scenarios" element={<Scenarios />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/people" element={<People />} />
       <Route path="/interview/:sessionId" element={<Interview />} />
       <Route path="/report/:sessionId" element={<Report />} />
       </Routes>

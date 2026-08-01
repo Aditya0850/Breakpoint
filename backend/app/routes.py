@@ -13,6 +13,16 @@ except ImportError:
 
 api = Blueprint('api', __name__)
 
+def _org_admin(user_id: str, org_id: str):
+
+    """True when the user has an active 'admin' membership in the org."""
+
+    try:
+        membership = state_db.get_membership(user_id, org_id)
+    except Exception:
+        return False
+    return bool(membership) and membership.get("status") == "active" and membership.get("system_role") == "admin"
+
 @api.route('/start', methods = ['POST'])
 @requires_auth
 def start_session():
@@ -408,6 +418,109 @@ def oauth_profile():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@api.route('/orgs', methods = ['POST'])
+@requires_auth
+def create_org():
+
+    data = request.get_json() or {}
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Organization name is required"}), 400
+
+    try:
+        result = state_db.create_org(g.user_id, name)
+        return jsonify(result), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/orgs/me', methods = ['GET'])
+@requires_auth
+def my_org():
+
+    try:
+        result = state_db.get_org_for_user(g.user_id)
+        return jsonify(result or {"org": None, "membership": None}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/orgs/<org_id>/invite', methods = ['POST'])
+@requires_auth
+def invite_org_member(org_id):
+
+    if not _org_admin(g.user_id, org_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json() or {}
+
+    email = (data.get("email") or "").strip()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    error, _ = state_db.invite_member(org_id, g.user_id, email, data.get("system_role", "member"))
+    if error == "user_not_found":
+        return jsonify({"error": "No account found for that email — they must sign up first"}), 404
+
+    return jsonify({"message": "Invite sent"}), 200
+
+@api.route('/orgs/<org_id>/join', methods = ['POST'])
+@requires_auth
+def join_org(org_id):
+
+    try:
+        result = state_db.join_org(g.user_id, org_id)
+        return jsonify(result or {"org": None, "membership": None}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@api.route('/orgs/<org_id>/members', methods = ['GET'])
+@requires_auth
+def list_org_members(org_id):
+
+    membership = state_db.get_membership(g.user_id, org_id)
+    if not membership or membership.get("status") != "active":
+        return jsonify({"error": "You are not a member of this organization"}), 403
+
+    return jsonify({"members": state_db.list_members(org_id)}), 200
+
+@api.route('/orgs/<org_id>/members/<user_id>', methods = ['PATCH'])
+@requires_auth
+def update_org_member(org_id, user_id):
+
+    if not _org_admin(g.user_id, org_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json() or {}
+
+    role = data.get("system_role")
+    status = data.get("status")
+    if role not in (None, "admin", "hr", "member"):
+        return jsonify({"error": "Invalid system_role"}), 400
+    if status not in (None, "active", "invited"):
+        return jsonify({"error": "Invalid status"}), 400
+
+    updated = state_db.update_member(org_id, user_id, system_role=role, status=status)
+    if not updated:
+        return jsonify({"error": "Member not found"}), 404
+
+    return jsonify({"message": "Member updated", "member": updated}), 200
+
+@api.route('/orgs/<org_id>/members/<user_id>', methods = ['DELETE'])
+@requires_auth
+def remove_org_member(org_id, user_id):
+
+    if not _org_admin(g.user_id, org_id):
+        return jsonify({"error": "Admin access required"}), 403
+
+    if user_id == g.user_id:
+        return jsonify({"error": "You cannot remove yourself"}), 400
+
+    removed = state_db.remove_member(org_id, user_id)
+    if not removed:
+        return jsonify({"error": "Member not found"}), 404
+
+    return jsonify({"message": "Member removed"}), 200
 
 @api.route('/scenarios', methods = ['GET'])
 @requires_auth

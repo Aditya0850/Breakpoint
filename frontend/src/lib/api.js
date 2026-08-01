@@ -173,3 +173,46 @@ export async function checkHealth() {
   const { data } = await api.get('/api/v1/health')
   return data
 }
+
+/* ── Organizations ─────────────────────────────────────────────── */
+
+/**
+ * GET /orgs/me → { org, membership } (both null when no org).
+ */
+export async function getMyOrg() {
+  const { data } = await api.get('/api/v1/orgs/me')
+  return data
+}
+
+export async function createOrg(name) {
+  const { data } = await api.post('/api/v1/orgs', { name })
+  return data
+}
+
+export async function joinOrg(orgId) {
+  const { data } = await api.post(`/api/v1/orgs/${orgId}/join`)
+  return data
+}
+
+export async function inviteMember(orgId, email, systemRole) {
+  const { data } = await api.post(`/api/v1/orgs/${orgId}/invite`, {
+    email,
+    system_role: systemRole,
+  })
+  return data
+}
+
+export async function fetchMembers(orgId) {
+  const { data } = await api.get(`/api/v1/orgs/${orgId}/members`)
+  return data.members ?? []
+}
+
+export async function updateMember(orgId, userId, changes) {
+  const { data } = await api.patch(`/api/v1/orgs/${orgId}/members/${userId}`, changes)
+  return data
+}
+
+export async function removeMember(orgId, userId) {
+  const { data } = await api.delete(`/api/v1/orgs/${orgId}/members/${userId}`)
+  return data
+}

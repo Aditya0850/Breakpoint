@@ -91,6 +91,84 @@ Return the full scenario library (source of truth: `backend/app/prompts.json`).
 
 ---
 
+## Organizations
+
+Multi-tenant workspace model. `system_role` values: `admin` (full control), `hr` (view/manage people), `member`. `status`: `active` or `invited`.
+
+### POST /orgs
+Create an organization. The creator becomes its admin.
+
+**Request:**
+```json
+{ "name": "Acme Corp" }
+```
+
+**Response (201):**
+```json
+{
+  "org": { "id": "uuid", "name": "Acme Corp", "settings": {}, "created_at": "..." },
+  "membership": { "user_id": "uuid", "org_id": "uuid", "system_role": "admin", "status": "active" }
+}
+```
+
+### GET /orgs/me
+Return the current user's most recent active membership and its organization (both `null` when the user has no org).
+
+**Response (200):**
+```json
+{
+  "org": { "id": "uuid", "name": "Acme Corp", "settings": {}, "created_at": "..." },
+  "membership": { "user_id": "uuid", "org_id": "uuid", "system_role": "hr", "status": "active" }
+}
+```
+
+### POST /orgs/{org_id}/join
+Join an organization (by invite code = org id). Activates an existing `invited` membership or creates an `active` `member` one.
+
+**Response (200):** same shape as `GET /orgs/me`.
+
+### POST /orgs/{org_id}/invite
+Invite an existing user by email. **Admin only** (403 otherwise).
+
+**Request:**
+```json
+{
+  "email": "colleague@company.com",
+  "system_role": "member"
+}
+```
+
+**Response (200):** `{ "message": "Invite sent" }`
+
+### GET /orgs/{org_id}/members
+List the org roster (any active member; 403 if not a member). Rows include `first_name`, `last_name`, `email` merged from profiles/auth.
+
+**Response (200):**
+```json
+{
+  "members": [
+    { "id": "uuid", "org_id": "uuid", "user_id": "uuid", "system_role": "admin", "status": "active", "first_name": "Ada", "last_name": "Lovelace", "email": "ada@company.com" }
+  ]
+}
+```
+
+### PATCH /orgs/{org_id}/members/{user_id}
+Update a member's role and/or status. **Admin only.**
+
+**Request:** any subset of
+```json
+{ "system_role": "hr", "status": "active" }
+```
+
+**Response (200):** `{ "message": "Member updated", "member": {...} }`
+
+### DELETE /orgs/{org_id}/members/{user_id}
+Remove a member. **Admin only** (cannot remove yourself).
+
+**Response (200):** `{ "message": "Member removed" }`
+
+---
+
 ## Sessions
 
 ### POST /start

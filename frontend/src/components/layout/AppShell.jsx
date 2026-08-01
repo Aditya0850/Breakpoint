@@ -8,11 +8,13 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Swords as SwordsIcon,
+  Users,
 } from 'lucide-react'
 import { supabase, signOut } from '../../lib/supabase'
+import { useOrg } from '../../lib/useOrg'
 import { cn } from '../../lib/utils'
 
-const nav = [
+const baseNav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sessions', label: 'Sessions', icon: History },
   { to: '/insights', label: 'Insights', icon: LineChart },
@@ -77,7 +79,18 @@ function useShellData() {
 export default function AppShell({ children, className = '' }) {
   const navigate = useNavigate()
   const { name, email, streak } = useShellData()
+  const { org, loading: orgLoading, isStaff } = useOrg()
   const initial = name.trim().charAt(0).toUpperCase() || 'S'
+
+  const nav = isStaff
+    ? [
+        ...baseNav.slice(0, 4),
+        { to: '/people', label: 'People', icon: Users },
+        baseNav[4],
+      ]
+    : baseNav
+
+  const showOrgPrompt = !orgLoading && !org
 
   async function handleSignOut() {
     await signOut()
@@ -181,7 +194,25 @@ export default function AppShell({ children, className = '' }) {
           </nav>
         </div>
 
-        <main className="min-w-0 flex-1 px-5 py-10 sm:px-8 lg:px-12">{children}</main>
+        <main className="min-w-0 flex-1 px-5 py-10 sm:px-8 lg:px-12">
+          {showOrgPrompt && (
+            <div className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-accent/40 bg-accent/10 px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-primary">You're not part of a team yet</p>
+                <p className="truncate text-xs text-muted">
+                  Create an organization or join one to unlock team features.
+                </p>
+              </div>
+              <NavLink
+                to="/people"
+                className="shrink-0 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-light"
+              >
+                Get started
+              </NavLink>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   )

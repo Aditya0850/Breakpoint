@@ -12,7 +12,8 @@ Sentinel doesn't ask scripted questions. A dynamic **mood engine** (1–10 scale
 - **Live interview** — text or voice input, streaming responses (SSE), filler-word detection, toxicity flagging
 - **Report card** — overall score, verdict (STRONG HIRE → NO HIRE), strengths/weaknesses, skill bars, weak-moment rewrites, executive summary, PDF export
 - **Candidate workspace** — Dashboard (streak, latest report, history), Sessions, Insights (mood trend, skill analytics), Settings
-- **Owned-data isolation** — Supabase Row Level Security scopes every row to the signed-in user
+- **Team workspace** — multi-tenant organizations with `admin`/`hr`/`member` roles, email invites, and a People page for roster + role management
+- **Owned-data isolation** — Supabase Row Level Security scopes every row to the signed-in user (org staff can read their org's data)
 
 ## Documentation
 
