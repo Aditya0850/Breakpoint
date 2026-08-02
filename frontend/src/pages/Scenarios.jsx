@@ -125,7 +125,7 @@ export default function Scenarios() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <PageHero
           eyebrow="Scenario library"
           title="Choose a battle"
@@ -155,7 +155,7 @@ export default function Scenarios() {
                     className="absolute inset-0 rounded-2xl pointer-events-none"
                     style={{ background: 'radial-gradient(ellipse at 50% 0%, var(--color-accent-dim) 0%, transparent 60%)', opacity: 0.12 }}
                   />
-                  <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {items.map((s, i) => {
                       const runs = runCounts[s.key] ?? 0
                       return (

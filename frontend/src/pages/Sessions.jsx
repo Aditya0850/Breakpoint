@@ -66,7 +66,7 @@ export default function Sessions() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <PageHero
           eyebrow="Session history"
           title="Your sessions"

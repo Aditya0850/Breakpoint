@@ -169,7 +169,7 @@ export default function Dashboard() {
 
   return (
     <PageShell className="px-6 py-14">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* ── Hero band ── */}
         <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-7 py-8 mb-8">
           <div

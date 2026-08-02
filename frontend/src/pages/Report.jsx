@@ -166,7 +166,7 @@ export default function Report() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="max-w-3xl mx-auto"
+        className="max-w-5xl mx-auto"
       >
         <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-7 py-8 mb-8">
           <div
