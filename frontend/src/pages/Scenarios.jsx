@@ -5,6 +5,7 @@ import { getScenarios, startSession } from '../lib/api'
 import { fetchSessions } from '../lib/supabase'
 import { useSessionStore } from '../store/sessionStore'
 import PageShell from '../components/layout/PageShell'
+import PageHero from '../components/layout/PageHero'
 import { Button } from '../components/ui/button'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
@@ -125,15 +126,11 @@ export default function Scenarios() {
   return (
     <PageShell className="px-6 py-12">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">
-            Scenario library
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Choose a battle</h1>
-          <p className="text-muted text-sm mt-2 max-w-xl">
-            Each scenario drops you into a high-stakes conversation with a realistic counterpart. Pick one, tune the pressure, and the interviewer takes it from there.
-          </p>
-        </div>
+        <PageHero
+          eyebrow="Scenario library"
+          title="Choose a battle"
+          subtitle="Each scenario drops you into a high-stakes conversation with a realistic counterpart. Pick one, tune the pressure, and the interviewer takes it from there."
+        />
 
         {error && (
           <div className="mb-8 rounded-xl border border-mood-cold/30 bg-mood-cold/5 px-5 py-4 text-sm text-mood-cold">
@@ -153,26 +150,32 @@ export default function Scenarios() {
                 <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-dim mb-4">
                   {category}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {items.map((s) => {
-                    const runs = runCounts[s.key] ?? 0
-                    return (
-                      <motion.button
-                        key={s.key}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        onClick={() => {
-                          setSelected(s.key)
-                          setContext('')
-                          setBrutal(false)
-                          setStartError(null)
-                        }}
-                        className={`text-left rounded-2xl border bg-surface p-5 transition-colors ${
-                          selected === s.key
-                            ? 'border-accent ring-1 ring-accent/40'
-                            : 'border-border hover:border-border-light'
-                        }`}
-                      >
+                <div className="relative rounded-2xl p-4 -m-4">
+                  <div
+                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                    style={{ background: 'radial-gradient(ellipse at 50% 0%, var(--color-accent-dim) 0%, transparent 60%)', opacity: 0.12 }}
+                  />
+                  <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {items.map((s, i) => {
+                      const runs = runCounts[s.key] ?? 0
+                      return (
+                        <motion.button
+                          key={s.key}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: 0.04 * i }}
+                          onClick={() => {
+                            setSelected(s.key)
+                            setContext('')
+                            setBrutal(false)
+                            setStartError(null)
+                          }}
+                          className={`text-left rounded-2xl border bg-surface p-5 transition-colors ${
+                            selected === s.key
+                              ? 'border-accent ring-1 ring-accent/40'
+                              : 'border-border hover:border-border-light'
+                          }`}
+                        >
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-sm font-semibold text-primary">{s.label}</span>
                           <IntensityDots level={INTENSITY[s.category] ?? 1} />
@@ -191,6 +194,7 @@ export default function Scenarios() {
                       </motion.button>
                     )
                   })}
+                  </div>
                 </div>
               </section>
             ))}

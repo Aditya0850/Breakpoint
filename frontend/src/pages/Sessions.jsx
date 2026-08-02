@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { fetchSessions, reportOf, sessionScore, sessionMinutes, endMoodOf } from '../lib/supabase'
 import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
+import PageHero from '../components/layout/PageHero'
+import StatTile from '../components/ui/StatTile'
 
 function verdictStyle(verdict) {
   const v = (verdict || '').toUpperCase()
@@ -57,26 +59,28 @@ export default function Sessions() {
 
   const reverse = useMemo(() => [...filtered].reverse(), [filtered])
 
+  const bestScore = useMemo(() => {
+    const scores = sessions.map(sessionScore).filter((s) => s != null)
+    return scores.length ? Math.max(...scores) : null
+  }, [sessions])
+
   return (
     <PageShell className="px-6 py-12">
       <div className="max-w-3xl mx-auto">
-        <div className="mb-8 flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">
-              Session history
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">Your sessions</h1>
-            <p className="text-muted text-sm mt-2">
-              {sessions.length > 0
-                ? `${sessions.length} completed run${sessions.length > 1 ? 's' : ''} across ${scenarioOptions.length} scenario${scenarioOptions.length !== 1 ? 's' : ''}.`
-                : 'No sessions yet — start your first scenario.'}
-            </p>
-          </div>
+        <PageHero
+          eyebrow="Session history"
+          title="Your sessions"
+          subtitle={
+            sessions.length > 0
+              ? `${sessions.length} completed run${sessions.length > 1 ? 's' : ''} across ${scenarioOptions.length} scenario${scenarioOptions.length !== 1 ? 's' : ''}.`
+              : 'No sessions yet — start your first scenario.'
+          }
+        >
           {scenarioOptions.length > 1 && (
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:outline-none focus:border-accent transition-colors"
+              className="rounded-lg border border-border bg-elevated px-3 py-2 text-sm text-primary focus:outline-none focus:border-accent transition-colors"
             >
               <option value="all">All scenarios</option>
               {scenarioOptions.map((s) => (
@@ -86,6 +90,17 @@ export default function Sessions() {
               ))}
             </select>
           )}
+        </PageHero>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+          <StatTile label="Completed runs" value={sessions.length} tone="accent" />
+          <StatTile label="Scenarios" value={scenarioOptions.length} tone="neutral" />
+          <StatTile
+            label="Best score"
+            value={bestScore ?? '—'}
+            tone="warm"
+            accentValue={bestScore != null}
+          />
         </div>
 
         {error && (
@@ -111,21 +126,33 @@ export default function Sessions() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {reverse.map((s) => {
+            {reverse.map((s, i) => {
               const rep = reportOf(s)
               const score = sessionScore(s)
               const minutes = sessionMinutes(s)
               const isOpen = expanded === s.id
+              const verdictColor = (rep?.verdict || '').toUpperCase().includes('HIRE')
+                ? 'var(--color-mood-warm)'
+                : (rep?.verdict || '').toUpperCase().includes('NO HIRE')
+                  ? 'var(--color-mood-cold)'
+                  : 'var(--color-mood-neutral)'
               return (
-                <div
+                <motion.div
                   key={s.id}
-                  className={`rounded-2xl border bg-surface transition-colors ${
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: 0.04 * i }}
+                  className={`relative overflow-hidden rounded-2xl border bg-surface transition-colors ${
                     isOpen ? 'border-accent/50' : 'border-border hover:border-border-light'
                   }`}
                 >
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[3px]"
+                    style={{ background: verdictColor }}
+                  />
                   <button
                     onClick={() => setExpanded(isOpen ? null : s.id)}
-                    className="w-full text-left px-5 py-4"
+                    className="w-full text-left px-5 pl-8 py-4"
                   >
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
@@ -167,7 +194,7 @@ export default function Sessions() {
                         transition={{ duration: 0.18 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-5 pb-5 pt-1 border-t border-border/60">
+                        <div className="px-5 pb-5 pt-1 border-t border-border/60 pl-8">
                           {rep?.executive_summary && (
                             <p className="text-sm text-muted leading-relaxed mb-4">{rep.executive_summary}</p>
                           )}
@@ -219,7 +246,7 @@ export default function Sessions() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </motion.div>
               )
             })}
           </div>

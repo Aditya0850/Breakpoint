@@ -5,6 +5,7 @@ import { evaluateSession, exportReportPdf } from '../lib/api'
 import { useSessionStore } from '../store/sessionStore'
 import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
+import ScoreRing from '../components/ui/ScoreRing'
 
 function Eyebrow({ children }) {
   return (
@@ -167,37 +168,45 @@ export default function Report() {
         transition={{ duration: 0.3 }}
         className="max-w-3xl mx-auto"
       >
-        <div className="flex items-center justify-between mb-10">
-          <div>
-            <Eyebrow>Evaluation report</Eyebrow>
-            <h1 className="text-2xl font-semibold tracking-tight">Performance Summary</h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="px-4 py-2.5 rounded-lg border border-border text-sm text-muted hover:border-border-light hover:text-primary transition-colors"
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-40 hover:bg-accent-light transition-colors"
-            >
-              {exporting ? 'Exporting PDF…' : 'Download PDF'}
-            </button>
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-7 py-8 mb-8">
+          <div
+            className="absolute -top-24 left-1/2 -translate-x-1/2 w-[520px] h-[520px] pointer-events-none"
+            style={{ background: 'radial-gradient(circle, var(--color-accent-dim) 0%, transparent 65%)', opacity: 0.28 }}
+          />
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <Eyebrow>Evaluation report</Eyebrow>
+              <h1 className="text-2xl font-semibold tracking-tight">Performance Summary</h1>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="px-4 py-2.5 rounded-lg border border-border text-sm text-muted hover:border-border-light hover:text-primary transition-colors"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-40 hover:bg-accent-light transition-colors"
+              >
+                {exporting ? 'Exporting PDF…' : 'Download PDF'}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Score, Confidence & Verdict Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center items-center text-center">
-            <span className="text-xs text-muted uppercase tracking-wider mb-1">Overall Score</span>
-            <span className="text-4xl font-bold tracking-tight text-primary">
-              {report?.overall_score ?? '—'}<span className="text-lg text-dim">/100</span>
-            </span>
+          <div className="rounded-xl border border-border bg-surface p-6 flex flex-col items-center justify-center gap-2">
+            <span className="text-xs text-muted uppercase tracking-wider">Overall Score</span>
+            <ScoreRing score={report?.overall_score ?? 0} size={120} />
           </div>
-          <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center items-center text-center">
+          <div className="relative overflow-hidden rounded-xl border border-border bg-surface p-6 flex flex-col justify-center items-center text-center">
+            <div
+              className="absolute -top-10 -right-10 w-24 h-24 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, var(--color-mood-neutral) 0%, transparent 70%)', opacity: 0.14 }}
+            />
             <span className="text-xs text-muted uppercase tracking-wider mb-1">Confidence</span>
             <span className="text-4xl font-bold tracking-tight text-primary">
               {report?.confidence_score ?? '—'}<span className="text-lg text-dim">/100</span>

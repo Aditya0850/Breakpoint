@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { getProfile, saveProfile } from '../lib/supabase'
 import { signOut } from '../lib/supabase'
 import PageShell from '../components/layout/PageShell'
+import PageHero from '../components/layout/PageHero'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -65,19 +66,17 @@ export default function Settings() {
   return (
     <PageShell className="px-6 py-12">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">
-            Settings
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Preferences</h1>
-          <p className="text-muted text-sm mt-2">
-            How Sentinel shows up, and how your default sessions are tuned.
-          </p>
-        </div>
+        <PageHero
+          eyebrow="Settings"
+          title="Preferences"
+          subtitle="How Sentinel shows up, and how your default sessions are tuned."
+        />
 
         <div className="flex flex-col gap-8">
           <section className="rounded-2xl border border-border bg-surface p-6">
-            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider">Profile</h2>
+            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Profile
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="firstName">First name</Label>
@@ -118,7 +117,9 @@ export default function Settings() {
           </section>
 
           <section className="rounded-2xl border border-border bg-surface p-6">
-            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider">Default session</h2>
+            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-mood-neutral" /> Default session
+            </h2>
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="persona">Default interviewer persona</Label>
@@ -147,7 +148,9 @@ export default function Settings() {
           </section>
 
           <section className="rounded-2xl border border-border bg-surface p-6">
-            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider">Account</h2>
+            <h2 className="text-sm font-medium text-muted mb-4 uppercase tracking-wider flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-mood-cold" /> Account
+            </h2>
             <Button variant="outline" onClick={() => signOut().finally(() => (window.location.href = '/'))}>
               Sign out
             </Button>

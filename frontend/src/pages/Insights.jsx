@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { fetchSessions, aggregateAnalytics } from '../lib/supabase'
 import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
+import PageHero from '../components/layout/PageHero'
+import StatTile from '../components/ui/StatTile'
 
 function AreaChart({ points }) {
   if (points.length === 0) {
@@ -57,16 +59,6 @@ function AreaChart({ points }) {
   )
 }
 
-function StatCard({ label, value, sub }) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
-      <p className="text-xs text-muted uppercase tracking-wider mb-1.5">{label}</p>
-      <p className="text-3xl font-bold tracking-tight text-primary">{value ?? '—'}</p>
-      {sub && <p className="text-xs text-dim mt-1">{sub}</p>}
-    </div>
-  )
-}
-
 export default function Insights() {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -90,15 +82,11 @@ export default function Insights() {
   return (
     <PageShell className="px-6 py-12">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent mb-2">
-            Insights
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Your growth signal</h1>
-          <p className="text-muted text-sm mt-2 max-w-xl">
-            Aggregated across every session — score, mood trajectory, and the patterns your interviewers keep noticing.
-          </p>
-        </div>
+        <PageHero
+          eyebrow="Insights"
+          title="Your growth signal"
+          subtitle="Aggregated across every session — score, mood trajectory, and the patterns your interviewers keep noticing."
+        />
 
         {error && (
           <div className="mb-8 rounded-xl border border-mood-cold/30 bg-mood-cold/5 px-5 py-4 text-sm text-mood-cold">
@@ -117,11 +105,11 @@ export default function Insights() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-              <StatCard label="Sessions" value={analytics.sessionsCompleted} />
-              <StatCard label="Avg score" value={analytics.averageScore} sub="/100" />
-              <StatCard label="Best score" value={analytics.bestScore} sub="/100" />
-              <StatCard label="Time practiced" value={analytics.totalMinutes} sub="minutes" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+              <StatTile label="Sessions" value={analytics.sessionsCompleted} tone="accent" />
+              <StatTile label="Avg score" value={analytics.averageScore} sub="/100" tone="neutral" />
+              <StatTile label="Best score" value={analytics.bestScore} sub="/100" tone="warm" accentValue />
+              <StatTile label="Time practiced" value={analytics.totalMinutes} sub="minutes" tone="cold" />
             </div>
 
             <section className="mb-10">

@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useOrg } from '../lib/useOrg'
+import PageHero from '../components/layout/PageHero'
+import StatTile from '../components/ui/StatTile'
 import {
   createOrg,
   joinOrg,
@@ -161,6 +164,20 @@ export default function People() {
 
   const pending = pendingInvites?.[0] ?? null
 
+  const roleCounts = useMemo(() => {
+    const counts = { admin: 0, hr: 0, member: 0 }
+    for (const m of members) {
+      if (counts[m.system_role] != null) counts[m.system_role] += 1
+    }
+    return counts
+  }, [members])
+
+  const pendingCount = useMemo(
+    () => members.filter((m) => m.status === 'invited').length,
+    [members],
+  )
+  const soloMember = members.length === 1 && isStaff
+
   async function toggleMember(member) {
     if (expandedMember === member.user_id) {
       setExpandedMember(null)
@@ -315,15 +332,21 @@ export default function People() {
     return (
       <PageShell className="px-6 py-12">
         <div className="mx-auto max-w-md">
-          <div className="mb-8 text-center">
-            <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent">
-              <Users className="h-6 w-6" />
-            </span>
-            <h1 className="text-3xl font-semibold tracking-tight">Your team workspace</h1>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-              You're not part of an organization yet. Create one for your team, or join with an
-              invite code.
-            </p>
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-6 py-10 mb-8">
+            <div
+              className="absolute -top-24 left-1/2 -translate-x-1/2 w-[480px] h-[480px] pointer-events-none"
+              style={{ background: 'radial-gradient(circle, var(--color-accent-dim) 0%, transparent 65%)', opacity: 0.35 }}
+            />
+            <div className="relative text-center">
+              <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent">
+                <Users className="h-6 w-6" />
+              </span>
+              <h1 className="text-3xl font-semibold tracking-tight">Your team workspace</h1>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+                You're not part of an organization yet. Create one for your team, or join with an
+                invite code.
+              </p>
+            </div>
           </div>
 
           {pending && (
@@ -426,36 +449,37 @@ export default function People() {
   return (
     <PageShell className="px-6 py-12">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-8">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-            Organization
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">{org.name}</h1>
-              <p className="text-sm text-muted">
-                {members.length} member{members.length === 1 ? '' : 's'}
-              </p>
-            </div>
-          </div>
+        <PageHero
+          eyebrow="Organization"
+          title={org.name}
+          subtitle={`${members.length} member${members.length === 1 ? '' : 's'} · ${
+            membership?.system_role === 'admin'
+              ? 'You are the admin'
+              : membership?.system_role === 'hr'
+                ? 'You are HR staff'
+                : 'Member'
+          }`}
+        >
           {isStaff && (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-elevated px-3 py-2">
               <p className="text-xs text-muted">Invite code</p>
-              <code className="rounded-lg border border-border bg-elevated px-2 py-1 font-mono text-xs text-primary">
-                {org.id}
-              </code>
+              <code className="font-mono text-xs text-primary">{org.id}</code>
               <button
                 onClick={copyOrgId}
                 title="Copy invite code"
-                className="rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                className="text-muted-foreground transition-colors hover:text-accent"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
+        </PageHero>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <StatTile label="Members" value={members.length} tone="accent" />
+          <StatTile label="Admins" value={roleCounts.admin} tone="neutral" />
+          <StatTile label="HR staff" value={roleCounts.hr} tone="warm" />
+          <StatTile label="Pending invites" value={pendingCount} tone="cold" />
         </div>
 
         {isStaff && (
@@ -508,17 +532,32 @@ export default function People() {
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             Loading members…
           </div>
+        ) : soloMember ? (
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-6 py-8">
+            <div
+              className="absolute -top-16 -right-16 w-52 h-52 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, var(--color-accent-dim) 0%, transparent 70%)', opacity: 0.5 }}
+            />
+            <h3 className="text-base font-semibold">Invite your team</h3>
+            <p className="mt-1.5 text-sm text-muted max-w-md">
+              You're the only member right now. Share your invite code above so HR and teammates
+              can join, run scenarios, and build a shared analytics picture.
+            </p>
+          </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {members.map((m) => {
+            {members.map((m, i) => {
               const isYou = m.user_id === yourUserId
               const displayName = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Member'
               const isOpen = expandedMember === m.user_id
               return (
-                <div
+                <motion.div
                   key={m.id ?? m.user_id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: 0.05 * i }}
                   className={cn(
-                    'overflow-hidden rounded-2xl border bg-surface transition-colors',
+                    'overflow-hidden rounded-2xl border bg-surface transition-colors hover:border-border-light',
                     isOpen ? 'border-accent/50' : 'border-border',
                   )}
                 >
@@ -603,7 +642,7 @@ export default function People() {
                       )}
                     </div>
                   )}
-                </div>
+                </motion.div>
               )
             })}
           </div>
