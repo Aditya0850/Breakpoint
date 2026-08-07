@@ -72,6 +72,10 @@
       background-color: #fee2e2;
       color: #991b1b;
     }
+    .verdict-badge.vl-4 { background-color: #dcfce7; color: #166534; }
+    .verdict-badge.vl-3 { background-color: #dcfce7; color: #166534; }
+    .verdict-badge.vl-2 { background-color: #fef3c7; color: #92400e; }
+    .verdict-badge.vl-1 { background-color: #fee2e2; color: #991b1b; }
     .summary-card {
       background-color: #eff6ff;
       border: 1px solid #bfdbfe;
@@ -113,7 +117,7 @@
   <div class="metric-card">
     <span class="score-badge">{{ report_data.overall_score }} / 100</span>
     <div>
-      <div class="verdict-badge">{{ report_data.verdict }}</div>
+      <div class="verdict-badge vl-{{ report_data.verdict_level | default(2) }}">{{ report_data.verdict }}</div>
       {% if report_data.confidence_score is defined %}
       <div style="margin-top:8px;font-size:11pt;color:#6b7280;">
         Confidence Score: <strong>{{ report_data.confidence_score }}</strong> / 100

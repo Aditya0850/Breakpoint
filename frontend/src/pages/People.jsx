@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { useOrg } from '../lib/useOrg'
+import { verdictStyle } from '../lib/verdict'
 import PageHero from '../components/layout/PageHero'
 import StatTile from '../components/ui/StatTile'
 import {
@@ -109,7 +110,7 @@ function MemberSessions({ sessions }) {
                   <span
                     className={cn(
                       'inline-block rounded-lg border px-2.5 py-1 text-[11px] font-bold tracking-wide',
-                      verdictStyle(rep.verdict),
+                      verdictStyle(rep.verdict, rep),
                     )}
                   >
                     {rep.verdict}
@@ -128,14 +129,6 @@ function MemberSessions({ sessions }) {
       </div>
     </div>
   )
-}
-
-function verdictStyle(verdict) {
-  const v = (verdict || '').toUpperCase()
-  if (v.includes('STRONG HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
-  if (v.includes('HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
-  if (v.includes('NO HIRE')) return 'bg-mood-cold/10 text-mood-cold border-mood-cold/30'
-  return 'bg-mood-neutral/10 text-mood-neutral border-mood-neutral/30'
 }
 
 export default function People() {

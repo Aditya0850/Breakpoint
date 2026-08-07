@@ -6,6 +6,7 @@ import { useSessionStore } from '../store/sessionStore'
 import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
 import ScoreRing from '../components/ui/ScoreRing'
+import { verdictStyle } from '../lib/verdict'
 
 function Eyebrow({ children }) {
   return (
@@ -76,14 +77,6 @@ function SkillBars({ skills }) {
       </div>
     </section>
   )
-}
-
-function verdictBadgeStyle(verdict) {
-  const v = (verdict || '').toUpperCase()
-  if (v.includes('STRONG HIRE') || v.includes('HIRE')) {
-    return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
-  }
-  return 'bg-mood-cold/10 text-mood-cold border-mood-cold/30'
 }
 
 export default function Report() {
@@ -215,7 +208,7 @@ export default function Report() {
           <div className="rounded-xl border border-border bg-surface p-6 flex flex-col justify-center">
             <span className="text-xs text-muted uppercase tracking-wider mb-2">Final Verdict</span>
             <div>
-              <span className={`inline-block px-3 py-1.5 rounded-lg border text-sm font-bold tracking-wide ${verdictBadgeStyle(report?.verdict)}`}>
+              <span className={`inline-block px-3 py-1.5 rounded-lg border text-sm font-bold tracking-wide ${verdictStyle(report?.verdict, report)}`}>
                 {report?.verdict ?? 'PENDING'}
               </span>
             </div>

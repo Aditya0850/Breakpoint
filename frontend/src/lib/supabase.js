@@ -244,7 +244,7 @@ export function aggregateAnalytics(sessions) {
     Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
 
   return {
-    sessionsCompleted: sessions.length,
+    sessionsCompleted: reports.length,
     averageScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
     bestScore: scores.length ? Math.max(...scores) : null,
     totalMinutes: minutes.reduce((a, b) => a + b, 0),

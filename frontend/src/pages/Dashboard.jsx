@@ -5,6 +5,7 @@ import { fetchSessions, aggregateAnalytics, getProfile, reportOf, endMoodOf } fr
 import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
 import ScoreRing from '../components/ui/ScoreRing'
+import { verdictCssColor } from '../lib/verdict'
 
 function Eyebrow({ children }) {
   return (
@@ -20,11 +21,8 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function verdictColor(verdict) {
-  if (!verdict) return 'var(--color-dim)'
-  if (verdict === 'STRONG HIRE' || verdict === 'HIRE') return 'var(--color-mood-warm)'
-  if (verdict === 'LEANING NO HIRE') return 'var(--color-mood-neutral)'
-  return 'var(--color-mood-cold)'
+function verdictColor(verdict, report) {
+  return verdictCssColor(verdict, report)
 }
 
 function greeting() {
@@ -284,8 +282,8 @@ export default function Dashboard() {
                       <span
                         className="text-xs font-semibold px-3 py-1.5 rounded-full"
                         style={{
-                          background: `${verdictColor(reportOf(latestSession).verdict)}15`,
-                          color: verdictColor(reportOf(latestSession).verdict),
+                          background: `${verdictColor(reportOf(latestSession).verdict, reportOf(latestSession))}15`,
+                          color: verdictColor(reportOf(latestSession).verdict, reportOf(latestSession)),
                         }}
                       >
                         {reportOf(latestSession).verdict ?? '—'}
@@ -397,12 +395,12 @@ export default function Dashboard() {
                         key={session.id}
                         onClick={() => navigate(`/report/${session.id}`)}
                         className="text-left px-4 py-3 rounded-lg border border-border bg-surface hover:border-border-light hover:ring-1 hover:ring-border-light transition-all flex items-center justify-between gap-4"
-                        style={{ borderLeftColor: verdict ? verdictColor(verdict) : 'var(--color-border)', borderLeftWidth: 3 }}
+                        style={{ borderLeftColor: verdict ? verdictColor(verdict, report) : 'var(--color-border)', borderLeftWidth: 3 }}
                       >
                         <div className="flex-1 min-w-0 flex items-center gap-3">
                           <span
                             className="w-2 h-2 rounded-full shrink-0"
-                            style={{ background: verdict ? verdictColor(verdict) : 'var(--color-dim)' }}
+                            style={{ background: verdict ? verdictColor(verdict, report) : 'var(--color-dim)' }}
                           />
                           <div className="min-w-0">
                             <p className="text-sm text-primary truncate">{session.scenario ?? 'Session'}</p>
@@ -418,8 +416,8 @@ export default function Dashboard() {
                           <span
                             className="text-[10px] font-semibold px-2 py-0.5 rounded shrink-0"
                             style={{
-                              background: `${verdictColor(verdict)}15`,
-                              color: verdictColor(verdict),
+                              background: `${verdictColor(verdict, report)}15`,
+                              color: verdictColor(verdict, report),
                             }}
                           >
                             {verdict}

@@ -6,14 +6,7 @@ import { moodColor } from '../lib/mood'
 import PageShell from '../components/layout/PageShell'
 import PageHero from '../components/layout/PageHero'
 import StatTile from '../components/ui/StatTile'
-
-function verdictStyle(verdict) {
-  const v = (verdict || '').toUpperCase()
-  if (v.includes('STRONG HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
-  if (v.includes('HIRE')) return 'bg-mood-warm/10 text-mood-warm border-mood-warm/30'
-  if (v.includes('NO HIRE')) return 'bg-mood-cold/10 text-mood-cold border-mood-cold/30'
-  return 'bg-mood-neutral/10 text-mood-neutral border-mood-neutral/30'
-}
+import { verdictStyle, verdictCssColor } from '../lib/verdict'
 
 function MoodShift({ session }) {
   const start = 5
@@ -131,11 +124,7 @@ export default function Sessions() {
               const score = sessionScore(s)
               const minutes = sessionMinutes(s)
               const isOpen = expanded === s.id
-              const verdictColor = (rep?.verdict || '').toUpperCase().includes('HIRE')
-                ? 'var(--color-mood-warm)'
-                : (rep?.verdict || '').toUpperCase().includes('NO HIRE')
-                  ? 'var(--color-mood-cold)'
-                  : 'var(--color-mood-neutral)'
+              const verdictColor = verdictCssColor(rep?.verdict, rep)
               return (
                 <motion.div
                   key={s.id}
@@ -176,7 +165,7 @@ export default function Sessions() {
                           </span>
                         )}
                         {rep?.verdict && (
-                          <span className={`inline-block px-2.5 py-1 rounded-lg border text-[11px] font-bold tracking-wide ${verdictStyle(rep.verdict)}`}>
+                          <span className={`inline-block px-2.5 py-1 rounded-lg border text-[11px] font-bold tracking-wide ${verdictStyle(rep.verdict, rep)}`}>
                             {rep.verdict}
                           </span>
                         )}

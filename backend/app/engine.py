@@ -12,6 +12,43 @@ except FileNotFoundError:
     PROMPTS_DB = {}
     print("WARNING: prompts.json not found. Ensure it is in the app/ directory.")
 
+# Category-specific verdict vocabulary, strongest -> weakest. The grader prompt
+# uses the vocabulary that matches the scenario's category so the verdict wording
+# fits what was practiced (an interview says HIRE, a crisis says RESOLVED, etc.).
+VERDICT_VOCAB = {
+    "HR_and_Interviews": ["STRONG HIRE", "HIRE", "LEANING NO HIRE", "NO HIRE"],
+    "Customer_Escalations": ["FULLY RESOLVED", "RESOLVED", "PARTIALLY RESOLVED", "UNRESOLVED"],
+    "Leadership_and_Management": ["STRONG LEADERSHIP", "SOUND LEADERSHIP", "UNCERTAIN LEADERSHIP", "WEAK LEADERSHIP"],
+    "External_Stakeholders": ["STRONG ALIGNMENT", "ALIGNED", "PARTIAL ALIGNMENT", "MISALIGNED"],
+    "Team_Dynamics": ["STRONG RESOLUTION", "RESOLVED", "PARTIAL RESOLUTION", "UNRESOLVED"],
+    "Compliance_and_Ethics": ["FULLY COMPLIANT", "COMPLIANT", "PARTIALLY COMPLIANT", "NON-COMPLIANT"],
+}
+
+DEFAULT_VERDICT_VOCAB = ["STRONG HIRE", "HIRE", "LEANING NO HIRE", "NO HIRE"]
+
+def _category_of(scenario: str):
+    data = PROMPTS_DB.get(scenario, {})
+    return data.get("category") if isinstance(data, dict) else None
+
+def _verdict_vocab_for(category):
+    return VERDICT_VOCAB.get(category, DEFAULT_VERDICT_VOCAB)
+
+def _verdict_level_for(verdict, vocab):
+    """Map a returned verdict string to a 1-4 level (4 = best), deterministic."""
+    v = (verdict or "").strip().upper()
+    for idx, candidate in enumerate(vocab):
+        if v == candidate.upper():
+            return len(vocab) - idx
+    if "STRONG" in v:
+        return 4
+    if "NON" in v or "UNRESOLVED" in v or "MISALIGNED" in v or "WEAK" in v or "NO HIRE" in v:
+        return 1
+    if "LEANING" in v or "PARTIAL" in v or "UNCERTAIN" in v:
+        return 2
+    if "HIRE" in v or "RESOLVED" in v or "ALIGN" in v or "COMPLIAN" in v or "LEADERSHIP" in v:
+        return 3
+    return 2
+
 def get_groq_client():
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -161,6 +198,10 @@ def generate_report_card(session_data: dict) -> dict:
         for i, msg in enumerate(history)
     ])
 
+    category = _category_of(session_data.get("scenario", ""))
+    vocab = _verdict_vocab_for(category)
+    verdict_hint = " | ".join(vocab)
+
     grader_instruction = """
         You are an elite enterprise HR Assessor and Crisis Management Expert. 
         Your sole objective is to analyze the provided conversation history and evaluate the USER's performance in de-escalating a workplace crisis.
@@ -173,7 +214,7 @@ def generate_report_card(session_data: dict) -> dict:
         {
               "overall_score": <int between 0 and 100>,
               "confidence_score": <int between 0 and 100, based on filler words, hedging, and assertiveness>,
-              "verdict": "<STRONG HIRE | HIRE | LEANING NO HIRE | NO HIRE>",
+              "verdict": "__VERDICT_VOCAB__",
               "strengths": ["string", "string", ...],
               "critical_weaknesses": ["string", "string", ...],
               "weak_moments": [
@@ -199,8 +240,8 @@ def generate_report_card(session_data: dict) -> dict:
             1. Accountability: Did they take ownership or immediately pivot to solutions?
             2. Tone & De-escalation: Did they keep their cool under pressure or mirror the AI's hostility?
             3. Resolution Focus: Did they steer the conversation toward a professional conclusion or get dragged into arguments?
-            4. Confidence & Language: Did they use assertive language or hedge/fill with vague qualifiers?
-    """
+             4. Confidence & Language: Did they use assertive language or hedge/fill with vague qualifiers?
+    """.replace("__VERDICT_VOCAB__", verdict_hint)
 
 
     messages = [
@@ -217,6 +258,8 @@ def generate_report_card(session_data: dict) -> dict:
 
     report = json.loads(response.choices[0].message.content)
     report["mood_timeline"] = session_data.get("mood_timeline", [])
+    report["verdict_level"] = _verdict_level_for(report.get("verdict"), vocab)
+    report["category"] = category
 
     if not isinstance(report.get("skills"), dict):
         report["skills"] = {
