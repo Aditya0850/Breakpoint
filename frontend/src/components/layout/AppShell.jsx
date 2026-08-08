@@ -110,7 +110,7 @@ export default function AppShell({ children, className = '' }) {
 
   return (
     <div className={cn('sentinel-noise relative min-h-screen bg-background text-foreground', className)}>
-      <div className="relative z-10 mx-auto flex max-w-[100rem] flex-col md:flex-row">
+      <div className="relative z-10 flex w-full flex-col md:flex-row">
         {/* ── Sidebar (desktop) ── */}
         <aside className="hidden shrink-0 flex-col border-r border-border bg-sidebar/80 backdrop-blur md:sticky md:top-0 md:flex md:h-screen md:w-60 md:px-4 md:py-5">
           <NavLink to="/dashboard" className="flex items-center gap-2 px-2 py-1">

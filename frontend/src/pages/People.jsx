@@ -441,7 +441,7 @@ export default function People() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="mx-auto max-w-5xl">
+      <div className="w-full">
         <PageHero
           eyebrow="Organization"
           title={org.name}

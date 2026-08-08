@@ -59,7 +59,7 @@ export default function Sessions() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full">
         <PageHero
           eyebrow="Session history"
           title="Your sessions"
@@ -185,7 +185,7 @@ export default function Sessions() {
                       >
                         <div className="px-5 pb-5 pt-1 border-t border-border/60 pl-8">
                           {rep?.executive_summary && (
-                            <p className="text-sm text-muted leading-relaxed mb-4">{rep.executive_summary}</p>
+                            <p className="text-sm text-muted leading-relaxed mb-4 max-w-prose">{rep.executive_summary}</p>
                           )}
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

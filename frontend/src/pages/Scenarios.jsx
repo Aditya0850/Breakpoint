@@ -125,7 +125,7 @@ export default function Scenarios() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <PageHero
           eyebrow="Scenario library"
           title="Choose a battle"

@@ -159,7 +159,7 @@ export default function Report() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="max-w-5xl mx-auto"
+        className="w-full"
       >
         <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-7 py-8 mb-8">
           <div
@@ -219,7 +219,7 @@ export default function Report() {
         {report?.executive_summary && (
           <section className="mb-10 rounded-xl border border-border bg-surface p-6">
             <h2 className="text-sm font-medium text-muted mb-2 uppercase tracking-wider">Executive Summary</h2>
-            <p className="text-sm text-primary leading-relaxed">{report.executive_summary}</p>
+            <p className="text-sm text-primary leading-relaxed max-w-prose">{report.executive_summary}</p>
           </section>
         )}
 

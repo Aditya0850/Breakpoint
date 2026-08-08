@@ -81,7 +81,7 @@ export default function Insights() {
 
   return (
     <PageShell className="px-6 py-12">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         <PageHero
           eyebrow="Insights"
           title="Your growth signal"
