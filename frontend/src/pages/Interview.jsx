@@ -124,6 +124,35 @@ export default function Interview() {
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
 
+  // Helper function to get supported audio MIME type
+  const getSupportedAudioMimeType = () => {
+    const mimeTypes = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg'
+    ];
+
+    // Check if MediaRecorder is supported
+    if (!window.MediaRecorder) {
+      return null;
+    }
+
+    // Try each MIME type until we find one that's supported
+    for (const mimeType of mimeTypes) {
+      try {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          return mimeType;
+        }
+      } catch (e) {
+        // Some browsers throw errors on unsupported types
+        continue;
+      }
+    }
+
+    return null;
+  };
+
   function speakText(text) {
     if (muted || !text) return
     window.speechSynthesis.cancel()
@@ -140,8 +169,21 @@ export default function Interview() {
   async function startRecording() {
     stopSpeaking()
     try {
+      // Check for MediaRecorder support
+      if (!window.MediaRecorder) {
+        setError('Audio recording is not supported in this browser.')
+        return
+      }
+
+      // Get supported MIME type
+      const mimeType = getSupportedAudioMimeType()
+      if (!mimeType) {
+        setError('No supported audio format found for recording.')
+        return
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      const mediaRecorder = new MediaRecorder(stream, { mimeType })
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
@@ -150,9 +192,9 @@ export default function Interview() {
       }
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        const audioFile = new File([audioBlob], 'audio_turn.webm', { type: 'audio/webm' })
-        
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
+        const audioFile = new File([audioBlob], `audio_turn.${mimeType.includes('webm') ? 'webm' : 'ogg'}`, { type: mimeType })
+
         setError(null)
         beginAiStream()
         try {
@@ -174,8 +216,15 @@ export default function Interview() {
 
       mediaRecorder.start()
       setRecording(true)
-    } catch {
-      setError('Microphone access denied or unsupported.')
+    } catch (err) {
+      // Handle specific error types
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Microphone access denied. Please grant permission to use your microphone.')
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError('No microphone found. Please connect a microphone and try again.')
+      } else {
+        setError('Microphone access failed — please check your microphone settings and try again.')
+      }
     }
   }
 

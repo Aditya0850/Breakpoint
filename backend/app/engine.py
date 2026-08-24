@@ -3,6 +3,17 @@ from groq import Groq
 from httpx import stream
 from app.utils import count_filler_words
 
+# Configuration constants
+GROQ_MODEL_MAIN = "llama-3.1-70b-versatile"
+GROQ_MODEL_FAST = "llama-3.1-8b-instant"
+TEMPERATURE_DEFAULT = 0.7
+TEMPERATURE_BRUTAL = 0.8
+TEMPERATURE_GRADER = 0.3
+MAX_TOKENS_INTERVIEW = 200
+MOOD_SHIFT_MIN = -2
+MOOD_SHIFT_MAX = 2
+TOXICITY_THRESHOLD = 50.0  # Percentage
+
 PROMPTS_FILE = os.path.join(os.path.dirname(__file__), 'prompts.json')
 
 try:
@@ -151,13 +162,13 @@ def generate_interview_response(session_data: dict, current_message: str) -> str
     })
 
     filler_analysis = count_filler_words(current_message)
-    temp = 0.8 if session_data.get("brutal_mode", False) else 0.7
+    temp = TEMPERATURE_BRUTAL if session_data.get("brutal_mode", False) else TEMPERATURE_DEFAULT
 
     response = client.chat.completions.create(
-        model = "llama-3.3-70b-versatile",
+        model = GROQ_MODEL_MAIN,
         messages = messages,
         temperature = temp,
-        max_tokens = 200,
+        max_tokens = MAX_TOKENS_INTERVIEW,
         stream = True
     )
 
@@ -250,9 +261,9 @@ def generate_report_card(session_data: dict) -> dict:
         ]
     
     response = client.chat.completions.create(
-            model = "llama-3.3-70b-versatile",
+            model = GROQ_MODEL_MAIN,
             messages = messages,
-            temperature = 0.3,
+            temperature = TEMPERATURE_GRADER,
             response_format = {"type": "json_object"}
         )
 
@@ -308,7 +319,7 @@ def calc_mood_shift(client, user_message, scenario, context):
     try:
 
         response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model=GROQ_MODEL_FAST,
                 messages=[{"role": "system", "content": eval_prompt}],
                 temperature=0.0,
                 max_tokens=5
@@ -317,7 +328,7 @@ def calc_mood_shift(client, user_message, scenario, context):
         score_text = response.choices[0].message.content.strip()
         score = int(score_text.replace('+', ''))
 
-        return max(-2, min(2, score))
+        return max(MOOD_SHIFT_MIN, min(MOOD_SHIFT_MAX, score))
     
     except Exception as e:
         print(f"Mood shift calculation failed: {e}")
